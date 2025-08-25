@@ -20,7 +20,6 @@ const sendEmail = async (to, text, subject = "AuthKit Notification") => {
     };
 
     await transporter.sendMail(mailOptions);
-    console.log(`Email sent to ${to}`);
   } catch (error) {
     console.error("Error sending email:", error);
     throw new Error("Email sending failed");

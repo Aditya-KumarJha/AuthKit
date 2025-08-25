@@ -4,22 +4,27 @@ import { useState } from "react";
 import Link from "next/link";
 import SocialButtons from "./SocialButtons";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
+import api from "@/utils/axios"; // ✅ use the same axios instance
 
 interface Props {
   setOtpStep: (value: boolean) => void;
+  setUserEmail: (email: string) => void;
 }
 
-export default function LoginForm({ setOtpStep }: Props) {
+export default function LoginForm({ setOtpStep, setUserEmail }: Props) {
   const [showPassword, setShowPassword] = useState(false);
   const [form, setForm] = useState({ email: "", password: "" });
   const [errors, setErrors] = useState({ email: false, password: false });
+  const [loading, setLoading] = useState(false);
+  const [serverError, setServerError] = useState<string | null>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
     setErrors({ ...errors, [e.target.name]: false });
+    setServerError(null);
   };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const newErrors = {
       email: form.email.trim() === "",
@@ -28,9 +33,21 @@ export default function LoginForm({ setOtpStep }: Props) {
     setErrors(newErrors);
     if (Object.values(newErrors).some(Boolean)) return;
 
-    // TODO: call backend API to validate email/password
-    // If login is successful, proceed to OTP step
-    setOtpStep(true);
+    try {
+      setLoading(true);
+      setServerError(null);
+
+      // ✅ Call backend login API with centralized axios
+      await api.post("/api/auth/login", form);
+
+      // Save email for OTPForm
+      setUserEmail(form.email);
+      setOtpStep(true);
+    } catch (err: any) {
+      setServerError(err.response?.data?.message || "Login failed");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const inputBaseClasses =
@@ -53,6 +70,12 @@ export default function LoginForm({ setOtpStep }: Props) {
         <div className="h-px bg-gray-300 dark:bg-gray-700 flex-1" />
       </div>
 
+      {serverError && (
+        <div className="mb-3 p-3 rounded-md bg-red-100 text-red-700 text-sm border border-red-300 text-center">
+          {serverError}
+        </div>
+      )}
+
       <form className="space-y-4" onSubmit={handleSubmit}>
         <div>
           <input
@@ -61,9 +84,13 @@ export default function LoginForm({ setOtpStep }: Props) {
             placeholder="Email address"
             value={form.email}
             onChange={handleChange}
-            className={`${inputBaseClasses} ${errors.email ? "border-red-500" : "border-gray-300 dark:border-gray-600"}`}
+            className={`${inputBaseClasses} ${
+              errors.email ? "border-red-500" : "border-gray-300 dark:border-gray-600"
+            }`}
           />
-          {errors.email && <p className="text-red-500 text-xs mt-1">Please fill this field</p>}
+          {errors.email && (
+            <p className="text-red-500 text-xs mt-1">Please fill this field</p>
+          )}
         </div>
 
         <div className="relative">
@@ -73,9 +100,13 @@ export default function LoginForm({ setOtpStep }: Props) {
             placeholder="Password"
             value={form.password}
             onChange={handleChange}
-            className={`${inputBaseClasses} ${errors.password ? "border-red-500" : "border-gray-300 dark:border-gray-600"}`}
+            className={`${inputBaseClasses} ${
+              errors.password ? "border-red-500" : "border-gray-300 dark:border-gray-600"
+            }`}
           />
-          {errors.password && <p className="text-red-500 text-xs mt-1">Please fill this field</p>}
+          {errors.password && (
+            <p className="text-red-500 text-xs mt-1">Please fill this field</p>
+          )}
           <button
             type="button"
             onClick={() => setShowPassword((s) => !s)}
@@ -88,14 +119,28 @@ export default function LoginForm({ setOtpStep }: Props) {
 
         <button
           type="submit"
-          className="w-full py-3 bg-gradient-to-r from-teal-400 to-cyan-500 hover:from-cyan-500 hover:to-teal-400 rounded-lg transition font-medium active:scale-95 text-white shadow-md hover:shadow-lg"
+          disabled={loading}
+          className="w-full py-3 bg-gradient-to-r from-teal-400 to-cyan-500 hover:from-cyan-500 hover:to-teal-400 rounded-lg transition font-medium active:scale-95 text-white shadow-md hover:shadow-lg disabled:opacity-50"
         >
-          Login
+          {loading ? "Logging in..." : "Login"}
         </button>
+
+        {/* Forgot Password link */}
+        <div className="text-right">
+          <Link
+            href="/forgot-password"
+            className="text-sm text-teal-500 dark:text-cyan-400 hover:underline"
+          >
+            Forgot Password?
+          </Link>
+        </div>
 
         <p className="text-center text-sm text-gray-600 dark:text-gray-400 mt-4">
           Don't have an account?{" "}
-          <Link href="/signup" className="text-teal-500 dark:text-cyan-400 hover:underline">
+          <Link
+            href="/signup"
+            className="text-teal-500 dark:text-cyan-400 hover:underline"
+          >
             Sign Up
           </Link>
         </p>

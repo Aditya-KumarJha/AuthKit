@@ -3,20 +3,20 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import AnimationPanel from "@/components/auth/AnimationPanel";
-import AuthForm from "@/components/auth/SignupForm";
+import SignupForm from "@/components/auth/SignupForm";
 import OtpForm from "@/components/auth/OtpForm";
 import ThemeToggleButton from "@/components/ui/theme-toggle-button";
 import { FaArrowLeft } from "react-icons/fa";
 
 export default function SignupPage() {
   const [otpStep, setOtpStep] = useState(false);
+  const [userEmail, setUserEmail] = useState(""); // store email for OTP
   const router = useRouter();
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-100 via-gray-200 to-white dark:from-gray-900 dark:via-gray-950 dark:to-black p-6 relative">
-      {/* Top bar with back and theme button */}
+      {/* Top bar */}
       <div className="absolute top-4 left-4 flex items-center gap-4">
-        {/* Back button */}
         <button
           onClick={() => router.push("/")}
           className="flex items-center gap-2 px-3 py-2 bg-gray-200 dark:bg-gray-800 text-gray-800 dark:text-white rounded-lg shadow hover:bg-gray-300 dark:hover:bg-gray-700 transition"
@@ -34,7 +34,11 @@ export default function SignupPage() {
 
       <div className="w-full max-w-6xl grid grid-cols-1 md:grid-cols-2 rounded-2xl overflow-hidden shadow-2xl">
         <AnimationPanel />
-        {!otpStep ? <AuthForm setOtpStep={setOtpStep} /> : <OtpForm />}
+        {!otpStep ? (
+          <SignupForm setOtpStep={setOtpStep} setUserEmail={setUserEmail} />
+        ) : (
+          <OtpForm email={userEmail} context="signup" />
+        )}
       </div>
     </div>
   );
