@@ -10,12 +10,11 @@ import { FaArrowLeft } from "react-icons/fa";
 
 export default function SignupPage() {
   const [otpStep, setOtpStep] = useState(false);
-  const [userEmail, setUserEmail] = useState(""); // store email for OTP
+  const [userEmail, setUserEmail] = useState(""); 
   const router = useRouter();
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-100 via-gray-200 to-white dark:from-gray-900 dark:via-gray-950 dark:to-black p-6 relative">
-      {/* Top bar */}
       <div className="absolute top-4 left-4 flex items-center gap-4">
         <button
           onClick={() => router.push("/")}

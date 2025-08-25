@@ -12,11 +12,9 @@ const generateToken = (user) => {
   );
 };
 
-// Helper: generate OTP
 const generateOtp = () => Math.floor(100000 + Math.random() * 900000).toString();
 
-// Minimum time between OTP sends in ms
-const OTP_RESEND_INTERVAL = 30 * 1000; // 30 seconds
+const OTP_RESEND_INTERVAL = 30 * 1000; 
 
 const register = async (req, res) => {
   try {
@@ -26,23 +24,19 @@ const register = async (req, res) => {
       return res.status(400).json({ message: "All fields are required" });
     }
 
-    // Check if already registered
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res.status(400).json({ message: "User already exists" });
     }
 
-    // Remove any old pending registrations
     await PendingUser.deleteOne({ email });
 
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
     const otpCode = generateOtp();
-    console.log("Generated OTP:", otpCode); // For testing purposes
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
-    // Save as PendingUser
     await PendingUser.create({
       firstName,
       lastName,
@@ -81,7 +75,6 @@ const login = async (req, res) => {
     if (!isMatch) return res.status(400).json({ message: "Invalid credentials" });
 
     const otpCode = generateOtp();
-    console.log("Login OTP:", otpCode); // For testing purposes
     const now = new Date();
     const expiresAt = new Date(now.getTime() + 10 * 60 * 1000);
 
@@ -115,13 +108,11 @@ const login = async (req, res) => {
 const verifyOtp = async (req, res) => {
   try {
     const { email, otp, context } = req.body; 
-    // context = "signup" or "login"
     if (!email || !otp) {
       return res.status(400).json({ message: "Email and OTP required" });
     }
 
     if (context === "signup") {
-      // Check in PendingUser
       const pendingUser = await PendingUser.findOne({ email });
       if (!pendingUser) {
         return res.status(400).json({ message: "No pending registration found" });
@@ -131,11 +122,10 @@ const verifyOtp = async (req, res) => {
         return res.status(400).json({ message: "Invalid or expired OTP" });
       }
 
-      // Move from PendingUser -> User
       const newUser = await User.create({
         fullName: { firstName: pendingUser.firstName, lastName: pendingUser.lastName },
         email: pendingUser.email,
-        password: pendingUser.password, // already hashed
+        password: pendingUser.password,
         provider: "email",
         isVerified: true,
       });
@@ -159,7 +149,6 @@ const verifyOtp = async (req, res) => {
     }
 
     if (context === "login") {
-      // Check in User
       const user = await User.findOne({ email });
       if (!user) {
         return res.status(404).json({ message: "User not found" });
@@ -169,7 +158,6 @@ const verifyOtp = async (req, res) => {
         return res.status(400).json({ message: "Invalid or expired OTP" });
       }
 
-      // Clear OTP after successful login
       user.otp = undefined;
       await user.save();
 
@@ -260,14 +248,12 @@ const resendOtp = async (req, res) => {
     const user = await User.findOne({ email });
     if (!user) return res.status(400).json({ message: "User not found" });
 
-    // Rate limiting: check last OTP send
     const now = new Date();
     if (user.otp?.lastSentAt && now - user.otp.lastSentAt < OTP_RESEND_INTERVAL) {
       return res.status(429).json({ message: "Please wait before requesting another OTP" });
     }
 
     const otpCode = generateOtp();
-    console.log("Resent OTP:", otpCode); // For testing purposes
     const expiresAt = new Date(now.getTime() + 10 * 60 * 1000);
 
     user.otp = { code: otpCode, expiresAt, lastSentAt: now };

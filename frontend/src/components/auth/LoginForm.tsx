@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import SocialButtons from "./SocialButtons";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
-import api from "@/utils/axios"; // ✅ use the same axios instance
+import api from "@/utils/axios"; 
 
 interface Props {
   setOtpStep: (value: boolean) => void;
@@ -37,10 +37,8 @@ export default function LoginForm({ setOtpStep, setUserEmail }: Props) {
       setLoading(true);
       setServerError(null);
 
-      // ✅ Call backend login API with centralized axios
       await api.post("/api/auth/login", form);
 
-      // Save email for OTPForm
       setUserEmail(form.email);
       setOtpStep(true);
     } catch (err: any) {
@@ -125,7 +123,6 @@ export default function LoginForm({ setOtpStep, setUserEmail }: Props) {
           {loading ? "Logging in..." : "Login"}
         </button>
 
-        {/* Forgot Password link */}
         <div className="text-right">
           <Link
             href="/forgot-password"

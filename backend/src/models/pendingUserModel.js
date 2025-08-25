@@ -4,7 +4,7 @@ const pendingUserSchema = new mongoose.Schema({
   firstName: String,
   lastName: String,
   email: { type: String, unique: true },
-  password: String, // already hashed
+  password: String, 
   otp: {
     code: String,
     expiresAt: Date,

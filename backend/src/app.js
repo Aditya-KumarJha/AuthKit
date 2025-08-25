@@ -11,11 +11,9 @@ app.use(cors({
   credentials: true
 }));
 
-// Middleware
 app.use(express.json());
 app.use(cookieParser());
 
-// Routes
 const authRoutes = require('./routes/authRoutes');
 app.use('/api/auth', authRoutes);
 

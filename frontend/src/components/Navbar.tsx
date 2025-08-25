@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import ThemeToggleButton from "@/components/ui/theme-toggle-button";
 import { useState } from "react";
-import { Menu, X, Home, FileText, Info, Settings } from "lucide-react"; // icons
+import { Menu, X, Home, FileText, Info, Settings } from "lucide-react"; 
 
 const Navbar = () => {
   const pathname = usePathname();
@@ -29,7 +29,6 @@ const Navbar = () => {
           AuthKit
         </Link>
 
-        {/* Desktop Links */}
         <div className="hidden md:flex gap-12">
           {navItems.map((item) => {
             const Icon = item.icon;
@@ -51,7 +50,6 @@ const Navbar = () => {
           })}
         </div>
 
-        {/* Desktop Theme Toggle */}
         <div className="hidden md:flex">
           <ThemeToggleButton
             variant="gif"
@@ -59,7 +57,6 @@ const Navbar = () => {
           />
         </div>
 
-        {/* Mobile Menu Button */}
         <div className="md:hidden flex items-center gap-4">
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
@@ -74,7 +71,6 @@ const Navbar = () => {
         </div>
       </div>
 
-      {/* Mobile Menu */}
       <div
         className={cn(
           "md:hidden absolute top-full left-0 w-full flex flex-col gap-4 px-6 py-4 " +

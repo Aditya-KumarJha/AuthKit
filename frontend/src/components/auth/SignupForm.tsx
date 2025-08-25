@@ -21,14 +21,13 @@ export default function SignupForm({ setOtpStep, setUserEmail }: Props) {
     lastName: false,
     email: false,
     password: "",
-  }); // password error can hold custom string
+  }); 
   const [loading, setLoading] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
 
-    // Reset specific field error when typing again
     if (e.target.name === "password") {
       setErrors({ ...errors, password: "" });
     } else {
@@ -41,7 +40,6 @@ export default function SignupForm({ setOtpStep, setUserEmail }: Props) {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    // ✅ validation
     const newErrors = {
       firstName: form.firstName.trim() === "",
       lastName: form.lastName.trim() === "",
@@ -57,7 +55,6 @@ export default function SignupForm({ setOtpStep, setUserEmail }: Props) {
 
     setErrors(newErrors);
 
-    // If any error exists, stop submission
     if (
       newErrors.firstName ||
       newErrors.lastName ||
@@ -71,7 +68,6 @@ export default function SignupForm({ setOtpStep, setUserEmail }: Props) {
       setLoading(true);
       setServerError(null);
 
-      // ✅ Call backend
       await api.post("/api/auth/register", form);
 
       setUserEmail(form.email);
@@ -102,7 +98,6 @@ export default function SignupForm({ setOtpStep, setUserEmail }: Props) {
         <div className="h-px bg-gray-300 dark:bg-gray-700 flex-1" />
       </div>
 
-      {/* ✅ Server error display */}
       {serverError && (
         <div className="mb-4 p-3 rounded-md bg-red-100 text-red-700 text-sm border border-red-300">
           {serverError}

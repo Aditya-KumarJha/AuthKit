@@ -20,10 +20,9 @@ export default function OtpForm({ email, context }: Props) {
   const [resendMessage, setResendMessage] = useState<string | null>(null);
   const [expiresAt, setExpiresAt] = useState<Date | null>(
     new Date(Date.now() + 10 * 60 * 1000)
-  ); // 10 mins from now
+  ); 
   const [remainingTime, setRemainingTime] = useState<number>(10 * 60);
 
-  // Countdown for resend
   useEffect(() => {
     let interval: number;
     if (resendDisabled) {
@@ -41,7 +40,6 @@ export default function OtpForm({ email, context }: Props) {
     return () => clearInterval(interval);
   }, [resendDisabled]);
 
-  // Countdown for OTP expiry
   useEffect(() => {
     if (!expiresAt) return;
 
@@ -87,7 +85,7 @@ export default function OtpForm({ email, context }: Props) {
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
-    const val = e.target.value.replace(/\D/, ""); // only digits
+    const val = e.target.value.replace(/\D/, "");
     if (!val && otp[index] === "") return;
     const newOtp = [...otp];
     newOtp[index] = val;
@@ -113,7 +111,6 @@ export default function OtpForm({ email, context }: Props) {
       otpRefs.current[index + 1]?.focus();
     }
 
-    // ✅ Pressing Enter submits OTP
     if (e.key === "Enter") {
       e.preventDefault();
       if (otp.join("").length === 6 && remainingTime > 0 && !loading) {
@@ -131,7 +128,7 @@ export default function OtpForm({ email, context }: Props) {
     try {
       await api.post("/api/auth/resend-otp", { email });
       setResendMessage("OTP has been resent to your email.");
-      setExpiresAt(new Date(Date.now() + 10 * 60 * 1000)); // reset expiry
+      setExpiresAt(new Date(Date.now() + 10 * 60 * 1000)); 
       setRemainingTime(10 * 60);
     } catch (err: any) {
       setServerError(
