@@ -5,16 +5,19 @@ import { useRouter } from "next/navigation";
 import AnimationPanel from "@/components/auth/AnimationPanel";
 import LoginForm from "@/components/auth/LoginForm";
 import OtpForm from "@/components/auth/OtpForm";
+import ForgotPassword from "@/components/auth/ForgotPassword"; 
 import ThemeToggleButton from "@/components/ui/theme-toggle-button";
 import { FaArrowLeft } from "react-icons/fa";
 
 export default function LoginPage() {
   const [otpStep, setOtpStep] = useState(false);
+  const [forgotStep, setForgotStep] = useState(false); 
   const [userEmail, setUserEmail] = useState(""); 
   const router = useRouter();
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-100 via-gray-200 to-white dark:from-gray-900 dark:via-gray-950 dark:to-black p-6 relative">
+      
       <div className="absolute top-4 left-4 flex items-center gap-4">
         <button
           onClick={() => router.push("/")}
@@ -33,10 +36,25 @@ export default function LoginPage() {
 
       <div className="w-full max-w-6xl grid grid-cols-1 md:grid-cols-2 rounded-2xl overflow-hidden shadow-2xl">
         <AnimationPanel page="login" />
-        {!otpStep ? (
-          <LoginForm setOtpStep={setOtpStep} setUserEmail={setUserEmail} />
-        ) : (
+
+        {!otpStep && !forgotStep && (
+          <LoginForm 
+            setOtpStep={setOtpStep} 
+            setUserEmail={setUserEmail} 
+            setForgotStep={setForgotStep} 
+          />
+        )}
+
+        {otpStep && !forgotStep && (
           <OtpForm email={userEmail} context="login" />
+        )}
+
+        {forgotStep && (
+          <ForgotPassword 
+            email={userEmail}
+            setEmail={setUserEmail}
+            onBack={() => setForgotStep(false)} 
+          />
         )}
       </div>
     </div>

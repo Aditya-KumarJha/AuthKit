@@ -35,6 +35,7 @@ const register = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, salt);
 
     const otpCode = generateOtp();
+    console.log("Register Generated OTP:", otpCode);
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
     await PendingUser.create({
@@ -75,6 +76,7 @@ const login = async (req, res) => {
     if (!isMatch) return res.status(400).json({ message: "Invalid credentials" });
 
     const otpCode = generateOtp();
+    console.log("Login Generated OTP:", otpCode);
     const now = new Date();
     const expiresAt = new Date(now.getTime() + 10 * 60 * 1000);
 
@@ -107,7 +109,7 @@ const login = async (req, res) => {
 
 const verifyOtp = async (req, res) => {
   try {
-    const { email, otp, context } = req.body; 
+    const { email, otp, context } = req.body;
     if (!email || !otp) {
       return res.status(400).json({ message: "Email and OTP required" });
     }
@@ -177,12 +179,32 @@ const verifyOtp = async (req, res) => {
       });
     }
 
-    return res.status(400).json({ message: "Invalid context. Must be signup or login" });
+    if (context === "forgot") {
+      const user = await User.findOne({ email });
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      if (
+        user.resetPasswordToken !== otp ||
+        user.resetPasswordExpires < new Date()
+      ) {
+        return res.status(400).json({ message: "Invalid or expired OTP" });
+      }
+
+      return res.status(200).json({
+        message: "Forgot password OTP verified successfully",
+        resetAllowed: true,
+      });
+    }
+
+    return res.status(400).json({ message: "Invalid context. Must be signup, login, or forgot" });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Server error" });
   }
 };
+
 
 const requestPasswordReset = async (req, res) => {
   try {
@@ -193,6 +215,7 @@ const requestPasswordReset = async (req, res) => {
     if (!user) return res.status(400).json({ message: "User not found" });
 
     const otpCode = generateOtp();
+    console.log("Password Reset OTP:", otpCode);
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
     user.resetPasswordToken = otpCode;
@@ -254,6 +277,7 @@ const resendOtp = async (req, res) => {
     }
 
     const otpCode = generateOtp();
+    console.log("Resend OTP Generated:", otpCode);
     const expiresAt = new Date(now.getTime() + 10 * 60 * 1000);
 
     user.otp = { code: otpCode, expiresAt, lastSentAt: now };

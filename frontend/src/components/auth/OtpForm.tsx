@@ -6,10 +6,11 @@ import api from "@/utils/axios";
 
 interface Props {
   email: string;
-  context: "signup" | "login";
+  context: "signup" | "login" | "forgot";
+  onVerified?: (email: string) => void; 
 }
 
-export default function OtpForm({ email, context }: Props) {
+export default function OtpForm({ email, context, onVerified }: Props) {
   const router = useRouter();
   const [otp, setOtp] = useState<string[]>(["", "", "", "", "", ""]);
   const otpRefs = useRef<Array<HTMLInputElement | null>>([]);
@@ -20,7 +21,7 @@ export default function OtpForm({ email, context }: Props) {
   const [resendMessage, setResendMessage] = useState<string | null>(null);
   const [expiresAt, setExpiresAt] = useState<Date | null>(
     new Date(Date.now() + 10 * 60 * 1000)
-  ); 
+  );
   const [remainingTime, setRemainingTime] = useState<number>(10 * 60);
 
   useEffect(() => {
@@ -74,9 +75,21 @@ export default function OtpForm({ email, context }: Props) {
       setLoading(true);
       setServerError(null);
 
-      const res = await api.post("/api/auth/verify-otp", { email, otp: otpCode, context });
-      localStorage.setItem("authToken", res.data.token);
-      router.push("/dashboard");
+      const res = await api.post("/api/auth/verify-otp", {
+        email,
+        otp: otpCode,
+        context,
+      });
+
+      if (context === "forgot") {
+        if (res.data.resetAllowed && onVerified) {
+          localStorage.setItem("resetOtp", otpCode); 
+          onVerified(email);
+        }
+      } else {
+        localStorage.setItem("authToken", res.data.token);
+        router.push("/dashboard");
+      }
     } catch (err: any) {
       setServerError(err.response?.data?.message || "OTP verification failed.");
     } finally {
@@ -84,7 +97,10 @@ export default function OtpForm({ email, context }: Props) {
     }
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    index: number
+  ) => {
     const val = e.target.value.replace(/\D/, "");
     if (!val && otp[index] === "") return;
     const newOtp = [...otp];
@@ -98,7 +114,10 @@ export default function OtpForm({ email, context }: Props) {
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
+  const handleKeyDown = (
+    e: React.KeyboardEvent<HTMLInputElement>,
+    index: number
+  ) => {
     const target = e.target as HTMLInputElement;
 
     if (e.key === "Backspace" && !otp[index] && index > 0) {
@@ -107,7 +126,11 @@ export default function OtpForm({ email, context }: Props) {
     if (e.key === "ArrowLeft" && index > 0 && target.selectionStart === 0) {
       otpRefs.current[index - 1]?.focus();
     }
-    if (e.key === "ArrowRight" && index < 5 && target.selectionStart === target.value.length) {
+    if (
+      e.key === "ArrowRight" &&
+      index < 5 &&
+      target.selectionStart === target.value.length
+    ) {
       otpRefs.current[index + 1]?.focus();
     }
 
@@ -128,7 +151,7 @@ export default function OtpForm({ email, context }: Props) {
     try {
       await api.post("/api/auth/resend-otp", { email });
       setResendMessage("OTP has been resent to your email.");
-      setExpiresAt(new Date(Date.now() + 10 * 60 * 1000)); 
+      setExpiresAt(new Date(Date.now() + 10 * 60 * 1000));
       setRemainingTime(10 * 60);
     } catch (err: any) {
       setServerError(
@@ -153,7 +176,8 @@ export default function OtpForm({ email, context }: Props) {
 
       {remainingTime > 0 ? (
         <p className="text-xs text-center text-gray-500 dark:text-gray-400 mb-4">
-          OTP is valid for <span className="font-semibold">{formatTime(remainingTime)}</span>
+          OTP is valid for{" "}
+          <span className="font-semibold">{formatTime(remainingTime)}</span>
         </p>
       ) : (
         <p className="text-xs text-center text-red-500 mb-4">
@@ -212,7 +236,9 @@ export default function OtpForm({ email, context }: Props) {
           disabled={resendDisabled}
           className="text-sm text-teal-500 hover:text-cyan-500 mt-4 disabled:opacity-50"
         >
-          {resendDisabled ? `Resend OTP in ${timer}s` : "Didn’t receive? Resend OTP"}
+          {resendDisabled
+            ? `Resend OTP in ${timer}s`
+            : "Didn’t receive? Resend OTP"}
         </button>
       </form>
     </div>

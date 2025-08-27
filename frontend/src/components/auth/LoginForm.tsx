@@ -4,14 +4,15 @@ import { useState } from "react";
 import Link from "next/link";
 import SocialButtons from "./SocialButtons";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
-import api from "@/utils/axios"; 
+import api from "@/utils/axios";
 
 interface Props {
   setOtpStep: (value: boolean) => void;
   setUserEmail: (email: string) => void;
+  setForgotStep: (value: boolean) => void; 
 }
 
-export default function LoginForm({ setOtpStep, setUserEmail }: Props) {
+export default function LoginForm({ setOtpStep, setUserEmail, setForgotStep }: Props) {
   const [showPassword, setShowPassword] = useState(false);
   const [form, setForm] = useState({ email: "", password: "" });
   const [errors, setErrors] = useState({ email: false, password: false });
@@ -26,11 +27,13 @@ export default function LoginForm({ setOtpStep, setUserEmail }: Props) {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+
     const newErrors = {
       email: form.email.trim() === "",
       password: form.password.trim() === "",
     };
     setErrors(newErrors);
+
     if (Object.values(newErrors).some(Boolean)) return;
 
     try {
@@ -83,7 +86,9 @@ export default function LoginForm({ setOtpStep, setUserEmail }: Props) {
             value={form.email}
             onChange={handleChange}
             className={`${inputBaseClasses} ${
-              errors.email ? "border-red-500" : "border-gray-300 dark:border-gray-600"
+              errors.email
+                ? "border-red-500"
+                : "border-gray-300 dark:border-gray-600"
             }`}
           />
           {errors.email && (
@@ -99,12 +104,15 @@ export default function LoginForm({ setOtpStep, setUserEmail }: Props) {
             value={form.password}
             onChange={handleChange}
             className={`${inputBaseClasses} ${
-              errors.password ? "border-red-500" : "border-gray-300 dark:border-gray-600"
+              errors.password
+                ? "border-red-500"
+                : "border-gray-300 dark:border-gray-600"
             }`}
           />
           {errors.password && (
             <p className="text-red-500 text-xs mt-1">Please fill this field</p>
           )}
+
           <button
             type="button"
             onClick={() => setShowPassword((s) => !s)}
@@ -124,12 +132,13 @@ export default function LoginForm({ setOtpStep, setUserEmail }: Props) {
         </button>
 
         <div className="text-right">
-          <Link
-            href="/forgot-password"
+          <button
+            type="button"
+            onClick={() => setForgotStep(true)} 
             className="text-sm text-teal-500 dark:text-cyan-400 hover:underline"
           >
             Forgot Password?
-          </Link>
+          </button>
         </div>
 
         <p className="text-center text-sm text-gray-600 dark:text-gray-400 mt-4">
