@@ -1,13 +1,19 @@
 "use client";
+export const dynamic = "force-dynamic";
 
 import { useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import AnimationPanel from "@/components/auth/AnimationPanel";
+import dynamicImport from "next/dynamic";
 import LoginForm from "@/components/auth/LoginForm";
 import OtpForm from "@/components/auth/OtpForm";
 import ForgotPassword from "@/components/auth/ForgotPassword"; 
 import ThemeToggleButton from "@/components/ui/theme-toggle-button";
 import { FaArrowLeft } from "react-icons/fa";
+
+const AnimationPanel = dynamicImport(
+  () => import("@/components/auth/AnimationPanel"),
+  { ssr: false }
+);
 
 export default function LoginPage() {
   const [otpStep, setOtpStep] = useState(false);
