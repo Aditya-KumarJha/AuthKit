@@ -22,17 +22,19 @@ router.post("/resend-otp", resendOtp);
 
 router.get(
   "/google",
-  passport.authenticate("google", { scope: ["profile", "email"] })
+  (req, res, next) => {
+    const mode = req.query.mode || "login"; // 'login' or 'signup'
+    passport.authenticate("google", { scope: ["profile", "email"], state: mode })(req, res, next);
+  }
 );
 
 router.get(
   "/google/callback",
-  passport.authenticate("google", { session: false }),
+  passport.authenticate("google", { session: false, failureRedirect: "http://localhost:3000/login?error=No+account+exists+with+this+Google+email" }),
   (req, res) => {
-    const token = jwt.sign({ id: req.user.id }, process.env.JWT_SECRET, {
+    const token = jwt.sign({ id: req.user._id }, process.env.JWT_SECRET, {
       expiresIn: process.env.JWT_EXPIRE,
     });
-
     res.redirect(`http://localhost:3000/auth/success?token=${token}`);
   }
 );

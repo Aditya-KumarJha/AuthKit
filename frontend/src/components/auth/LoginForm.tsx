@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams,useRouter } from "next/navigation";
 import Link from "next/link";
 import SocialButtons from "./SocialButtons";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
@@ -13,11 +14,25 @@ interface Props {
 }
 
 export default function LoginForm({ setOtpStep, setUserEmail, setForgotStep }: Props) {
+  const searchParams = useSearchParams();
   const [showPassword, setShowPassword] = useState(false);
   const [form, setForm] = useState({ email: "", password: "" });
   const [errors, setErrors] = useState({ email: false, password: false });
   const [loading, setLoading] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
+
+  const router = useRouter();
+
+  useEffect(() => {
+    const error = searchParams?.get("error");
+    if (error) {
+      if (!searchParams) return;
+      setServerError(error);
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("error");
+      router.replace(`?${params.toString()}`, { scroll: false });
+    }
+  }, [searchParams]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -27,15 +42,12 @@ export default function LoginForm({ setOtpStep, setUserEmail, setForgotStep }: P
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-
     const newErrors = {
       email: form.email.trim() === "",
       password: form.password.trim() === "",
     };
     setErrors(newErrors);
-
     if (Object.values(newErrors).some(Boolean)) return;
-
     try {
       setLoading(true);
       setServerError(null);
@@ -52,7 +64,7 @@ export default function LoginForm({ setOtpStep, setUserEmail, setForgotStep }: P
   const handleSocialLogin = (provider: string) => {
     switch (provider) {
       case "Google":
-        window.location.href = "http://localhost:4000/api/auth/google";
+        window.location.href = "http://localhost:4000/api/auth/google?mode=login";
         break;
       default:
         console.log(`${provider} login not implemented yet.`);
