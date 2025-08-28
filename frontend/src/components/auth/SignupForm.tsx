@@ -21,19 +21,17 @@ export default function SignupForm({ setOtpStep, setUserEmail }: Props) {
     lastName: false,
     email: false,
     password: "",
-  }); 
+  });
   const [loading, setLoading] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
-
     if (e.target.name === "password") {
       setErrors({ ...errors, password: "" });
     } else {
       setErrors({ ...errors, [e.target.name]: false });
     }
-
     setServerError(null);
   };
 
@@ -67,9 +65,7 @@ export default function SignupForm({ setOtpStep, setUserEmail }: Props) {
     try {
       setLoading(true);
       setServerError(null);
-
       await api.post("/api/auth/register", form);
-
       setUserEmail(form.email);
       setOtpStep(true);
     } catch (err: any) {
@@ -77,6 +73,16 @@ export default function SignupForm({ setOtpStep, setUserEmail }: Props) {
       setServerError(msg);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSocialLogin = (provider: string) => {
+    switch (provider) {
+      case "Google":
+        window.location.href = "http://localhost:4000/api/auth/google";
+        break;
+      default:
+        console.log(`${provider} login not implemented yet.`);
     }
   };
 
@@ -90,7 +96,7 @@ export default function SignupForm({ setOtpStep, setUserEmail }: Props) {
         Join AuthKit to power secure, modern authentication.
       </p>
 
-      <SocialButtons />
+      <SocialButtons onClick={handleSocialLogin} />
 
       <div className="flex items-center gap-4 mb-6">
         <div className="h-px bg-gray-300 dark:bg-gray-700 flex-1" />

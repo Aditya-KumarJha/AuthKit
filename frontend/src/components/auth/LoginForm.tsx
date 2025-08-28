@@ -9,7 +9,7 @@ import api from "@/utils/axios";
 interface Props {
   setOtpStep: (value: boolean) => void;
   setUserEmail: (email: string) => void;
-  setForgotStep: (value: boolean) => void; 
+  setForgotStep: (value: boolean) => void;
 }
 
 export default function LoginForm({ setOtpStep, setUserEmail, setForgotStep }: Props) {
@@ -39,15 +39,23 @@ export default function LoginForm({ setOtpStep, setUserEmail, setForgotStep }: P
     try {
       setLoading(true);
       setServerError(null);
-
       await api.post("/api/auth/login", form);
-
       setUserEmail(form.email);
       setOtpStep(true);
     } catch (err: any) {
       setServerError(err.response?.data?.message || "Login failed");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSocialLogin = (provider: string) => {
+    switch (provider) {
+      case "Google":
+        window.location.href = "http://localhost:4000/api/auth/google";
+        break;
+      default:
+        console.log(`${provider} login not implemented yet.`);
     }
   };
 
@@ -61,7 +69,7 @@ export default function LoginForm({ setOtpStep, setUserEmail, setForgotStep }: P
         Enter your credentials below to access your account.
       </p>
 
-      <SocialButtons />
+      <SocialButtons onClick={handleSocialLogin} />
 
       <div className="flex items-center gap-4 mb-6">
         <div className="h-px bg-gray-300 dark:bg-gray-700 flex-1" />
@@ -86,9 +94,7 @@ export default function LoginForm({ setOtpStep, setUserEmail, setForgotStep }: P
             value={form.email}
             onChange={handleChange}
             className={`${inputBaseClasses} ${
-              errors.email
-                ? "border-red-500"
-                : "border-gray-300 dark:border-gray-600"
+              errors.email ? "border-red-500" : "border-gray-300 dark:border-gray-600"
             }`}
           />
           {errors.email && (
@@ -104,9 +110,7 @@ export default function LoginForm({ setOtpStep, setUserEmail, setForgotStep }: P
             value={form.password}
             onChange={handleChange}
             className={`${inputBaseClasses} ${
-              errors.password
-                ? "border-red-500"
-                : "border-gray-300 dark:border-gray-600"
+              errors.password ? "border-red-500" : "border-gray-300 dark:border-gray-600"
             }`}
           />
           {errors.password && (
@@ -134,7 +138,7 @@ export default function LoginForm({ setOtpStep, setUserEmail, setForgotStep }: P
         <div className="text-right">
           <button
             type="button"
-            onClick={() => setForgotStep(true)} 
+            onClick={() => setForgotStep(true)}
             className="text-sm text-teal-500 dark:text-cyan-400 hover:underline"
           >
             Forgot Password?
