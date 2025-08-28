@@ -14,7 +14,7 @@ const generateToken = (user) => {
 
 const generateOtp = () => Math.floor(100000 + Math.random() * 900000).toString();
 
-const OTP_RESEND_INTERVAL = 30 * 1000; 
+const OTP_RESEND_INTERVAL = 30 * 1000;
 
 const register = async (req, res) => {
   try {
@@ -24,18 +24,19 @@ const register = async (req, res) => {
       return res.status(400).json({ message: "All fields are required" });
     }
 
-    const existingUser = await User.findOne({ email });
+    const [existingUser, hashedPassword] = await Promise.all([
+      User.findOne({ email }),
+      bcrypt.hash(password, 10),
+    ]);
+
     if (existingUser) {
       return res.status(400).json({ message: "User already exists" });
     }
 
     await PendingUser.deleteOne({ email });
 
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
     const otpCode = generateOtp();
-    console.log("Register Generated OTP:", otpCode);
+    console.log("Signup Generated OTP:", otpCode);
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
     await PendingUser.create({
@@ -46,14 +47,12 @@ const register = async (req, res) => {
       otp: { code: otpCode, expiresAt },
     });
 
-    try {
-      await sendEmail(email, `Your OTP code is ${otpCode}`);
-    } catch (emailErr) {
-      console.error("Email sending failed:", emailErr);
-      return res.status(500).json({ message: "Failed to send OTP email" });
-    }
+    res.status(200).json({ message: "OTP generated. Please check your email." });
 
-    res.status(200).json({ message: "OTP sent to email. Please verify." });
+    sendEmail(email, `Your OTP code is ${otpCode}`).catch((err) =>
+      console.error("Email sending failed:", err)
+    );
+
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Server error" });
@@ -75,20 +74,20 @@ const login = async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(400).json({ message: "Invalid credentials" });
 
+    const now = new Date();
+
+    if (user.otp?.lastSentAt && now - user.otp.lastSentAt < OTP_RESEND_INTERVAL) {
+      return res.status(429).json({ message: "Please wait before requesting another OTP" });
+    }
+
     const otpCode = generateOtp();
     console.log("Login Generated OTP:", otpCode);
-    const now = new Date();
     const expiresAt = new Date(now.getTime() + 10 * 60 * 1000);
 
-    user.otp = { code: otpCode, expiresAt, lastSentAt: now };
-    await user.save();
-
-    try {
-      await sendEmail(email, `Your OTP code is ${otpCode}`);
-    } catch (emailErr) {
-      console.error("Email sending failed:", emailErr);
-      return res.status(500).json({ message: "Failed to send OTP email" });
-    }
+    await User.updateOne(
+      { _id: user._id },
+      { $set: { otp: { code: otpCode, expiresAt, lastSentAt: now } } }
+    );
 
     res.status(200).json({
       message: "OTP sent to email",
@@ -101,6 +100,11 @@ const login = async (req, res) => {
         isVerified: user.isVerified,
       },
     });
+
+    sendEmail(email, `Your OTP code is ${otpCode}`).catch((err) =>
+      console.error("Email sending failed:", err)
+    );
+
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Server error" });
@@ -124,15 +128,16 @@ const verifyOtp = async (req, res) => {
         return res.status(400).json({ message: "Invalid or expired OTP" });
       }
 
-      const newUser = await User.create({
+      const createUserPromise = User.create({
         fullName: { firstName: pendingUser.firstName, lastName: pendingUser.lastName },
         email: pendingUser.email,
         password: pendingUser.password,
         provider: "email",
         isVerified: true,
       });
+      const deletePendingPromise = PendingUser.deleteOne({ email });
 
-      await PendingUser.deleteOne({ email });
+      const [newUser] = await Promise.all([createUserPromise, deletePendingPromise]);
 
       const token = generateToken(newUser);
 
@@ -160,8 +165,7 @@ const verifyOtp = async (req, res) => {
         return res.status(400).json({ message: "Invalid or expired OTP" });
       }
 
-      user.otp = undefined;
-      await user.save();
+      await User.updateOne({ _id: user._id }, { $unset: { otp: "" } });
 
       const token = generateToken(user);
 
@@ -205,7 +209,6 @@ const verifyOtp = async (req, res) => {
   }
 };
 
-
 const requestPasswordReset = async (req, res) => {
   try {
     const { email } = req.body;
@@ -222,14 +225,12 @@ const requestPasswordReset = async (req, res) => {
     user.resetPasswordExpires = expiresAt;
     await user.save();
 
-    try {
-      await sendEmail(email, `Your password reset OTP is ${otpCode}`);
-    } catch (emailErr) {
-      console.error("Email sending failed:", emailErr);
-      return res.status(500).json({ message: "Failed to send password reset email" });
-    }
-
     res.status(200).json({ message: "Password reset OTP sent to email" });
+
+    sendEmail(email, `Your password reset OTP is ${otpCode}`).catch((err) =>
+      console.error("Email sending failed:", err)
+    );
+
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Server error" });
@@ -250,8 +251,7 @@ const resetPassword = async (req, res) => {
       user.resetPasswordExpires < new Date()
     ) return res.status(400).json({ message: "Invalid or expired OTP" });
 
-    const salt = await bcrypt.genSalt(10);
-    user.password = await bcrypt.hash(newPassword, salt);
+    user.password = await bcrypt.hash(newPassword, 10);
     user.resetPasswordToken = undefined;
     user.resetPasswordExpires = undefined;
     await user.save();
@@ -280,17 +280,16 @@ const resendOtp = async (req, res) => {
     console.log("Resend OTP Generated:", otpCode);
     const expiresAt = new Date(now.getTime() + 10 * 60 * 1000);
 
-    user.otp = { code: otpCode, expiresAt, lastSentAt: now };
-    await user.save();
-
-    try {
-      await sendEmail(email, `Your new OTP code is ${otpCode}`);
-    } catch (emailErr) {
-      console.error("Email sending failed:", emailErr);
-      return res.status(500).json({ message: "Failed to send OTP email" });
-    }
+    await User.updateOne(
+      { _id: user._id },
+      { $set: { otp: { code: otpCode, expiresAt, lastSentAt: now } } }
+    );
 
     res.status(200).json({ message: "New OTP sent to email" });
+
+    sendEmail(email, `Your new OTP code is ${otpCode}`).catch((err) =>
+      console.error("Email sending failed:", err)
+    );
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Server error" });
