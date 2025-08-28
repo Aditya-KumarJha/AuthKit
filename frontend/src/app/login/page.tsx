@@ -3,17 +3,14 @@ export const dynamic = "force-dynamic";
 
 import { useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
-import dynamicImport from "next/dynamic";
-import LoginForm from "@/components/auth/LoginForm";
-import OtpForm from "@/components/auth/OtpForm";
-import ForgotPassword from "@/components/auth/ForgotPassword"; 
+import nextDynamic from "next/dynamic";
 import ThemeToggleButton from "@/components/ui/theme-toggle-button";
 import { FaArrowLeft } from "react-icons/fa";
 
-const AnimationPanel = dynamicImport(
-  () => import("@/components/auth/AnimationPanel"),
-  { ssr: false }
-);
+const AnimationPanel = nextDynamic(() => import("@/components/auth/AnimationPanel"), { ssr: false });
+const LoginForm = nextDynamic(() => import("@/components/auth/LoginForm"), { ssr: false });
+const OtpForm = nextDynamic(() => import("@/components/auth/OtpForm"), { ssr: false });
+const ForgotPassword = nextDynamic(() => import("@/components/auth/ForgotPassword"), { ssr: false });
 
 export default function LoginPage() {
   const [otpStep, setOtpStep] = useState(false);
@@ -23,9 +20,9 @@ export default function LoginPage() {
   const router = useRouter();
 
   useEffect(() => {
-    const error = searchParams?.get("error");
+    if (!searchParams) return; 
+    const error = searchParams.get("error");
     if (error) {
-      if (!searchParams) return;
       setUserEmail(error);
       const params = new URLSearchParams(searchParams.toString());
       params.delete("error");
