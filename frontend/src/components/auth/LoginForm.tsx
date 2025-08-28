@@ -62,15 +62,16 @@ export default function LoginForm({ setOtpStep, setUserEmail, setForgotStep }: P
   };
 
   const handleSocialLogin = (provider: string) => {
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL;
     switch (provider) {
       case "Google":
-        window.location.href = "http://localhost:4000/api/auth/google?mode=login";
+        window.location.href = `${baseUrl}/api/auth/google?mode=login`;
         break;
       case "GitHub":
-        window.location.href = "http://localhost:4000/api/auth/github?mode=login";
+        window.location.href = `${baseUrl}/api/auth/github?mode=login`;
         break;
       case "Facebook":
-        window.location.href = "http://localhost:4000/api/auth/facebook?mode=login";
+        window.location.href = `${baseUrl}/api/auth/facebook?mode=login`;
         break;
       default:
         console.log(`${provider} login not implemented yet.`);
