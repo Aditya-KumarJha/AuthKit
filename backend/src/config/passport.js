@@ -1,6 +1,7 @@
 const passport = require("passport");
 const GoogleStrategy = require("passport-google-oauth20").Strategy;
 const GitHubStrategy = require("passport-github2").Strategy;
+const FacebookStrategy = require("passport-facebook").Strategy;
 const User = require("../models/userModel");
 
 passport.use(
@@ -67,6 +68,46 @@ passport.use(
                 lastName: profile.displayName?.split(" ")[1] || "",
               },
               provider: "github",
+              isVerified: true,
+              profilePic: profile.photos?.[0]?.value || "",
+            });
+          }
+        }
+
+        return done(null, user);
+      } catch (err) {
+        return done(err, null);
+      }
+    }
+  )
+);
+
+passport.use(
+  new FacebookStrategy(
+    {
+      clientID: process.env.FACEBOOK_CLIENT_ID,
+      clientSecret: process.env.FACEBOOK_CLIENT_SECRET,
+      callbackURL: "http://localhost:4000/api/auth/facebook/callback",
+      profileFields: ["id", "emails", "name", "picture.type(large)"], 
+      passReqToCallback: true,
+    },
+    async (req, accessToken, refreshToken, profile, done) => {
+      try {
+        const mode = req.query.state || "login";
+        let user = await User.findOne({ facebookId: profile.id });
+
+        if (mode === "login") {
+          if (!user) return done(null, false);
+        } else if (mode === "signup") {
+          if (!user) {
+            user = await User.create({
+              facebookId: profile.id,
+              email: profile.emails?.[0]?.value || "",
+              fullName: {
+                firstName: profile.name?.givenName || "",
+                lastName: profile.name?.familyName || "",
+              },
+              provider: "facebook",
               isVerified: true,
               profilePic: profile.photos?.[0]?.value || "",
             });

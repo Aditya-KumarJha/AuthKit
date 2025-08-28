@@ -69,6 +69,9 @@ export default function LoginForm({ setOtpStep, setUserEmail, setForgotStep }: P
       case "GitHub":
         window.location.href = "http://localhost:4000/api/auth/github?mode=login";
         break;
+      case "Facebook":
+        window.location.href = "http://localhost:4000/api/auth/facebook?mode=login";
+        break;
       default:
         console.log(`${provider} login not implemented yet.`);
     }
