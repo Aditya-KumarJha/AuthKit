@@ -11,9 +11,10 @@ interface Props {
   setOtpStep: (value: boolean) => void;
   setUserEmail: (email: string) => void;
   setForgotStep: (value: boolean) => void;
+  errorMessage?: string;
 }
 
-export default function LoginForm({ setOtpStep, setUserEmail, setForgotStep }: Props) {
+export default function LoginForm({ setOtpStep, setUserEmail, setForgotStep, errorMessage }: Props) {
   const searchParams = useSearchParams();
   const [showPassword, setShowPassword] = useState(false);
   const [form, setForm] = useState({ email: "", password: "" });
@@ -98,9 +99,9 @@ export default function LoginForm({ setOtpStep, setUserEmail, setForgotStep }: P
         <div className="h-px bg-gray-300 dark:bg-gray-700 flex-1" />
       </div>
 
-      {serverError && (
+      {(errorMessage || serverError) && (
         <div className="mb-3 p-3 rounded-md bg-red-100 text-red-700 text-sm border border-red-300 text-center">
-          {serverError}
+          {errorMessage || serverError}
         </div>
       )}
 
