@@ -81,6 +81,9 @@ export default function SignupForm({ setOtpStep, setUserEmail }: Props) {
       case "Google":
         window.location.href = "http://localhost:4000/api/auth/google?mode=signup";
         break;
+      case "GitHub":
+        window.location.href = "http://localhost:4000/api/auth/github?mode=signup";
+        break;
       default:
         console.log(`${provider} login not implemented yet.`);
     }

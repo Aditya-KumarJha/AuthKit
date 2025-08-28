@@ -39,4 +39,27 @@ router.get(
   }
 );
 
+router.get(
+  "/github",
+  (req, res, next) => {
+    const mode = req.query.mode || "login"; 
+    passport.authenticate("github", { scope: ["user:email"], state: mode })(req, res, next);
+  }
+);
+
+router.get(
+  "/github/callback",
+  passport.authenticate("github", {
+    session: false,
+    failureRedirect:
+      "http://localhost:3000/login?error=No+account+exists+with+this+GitHub+email",
+  }),
+  (req, res) => {
+    const token = jwt.sign({ id: req.user._id }, process.env.JWT_SECRET, {
+      expiresIn: process.env.JWT_EXPIRE,
+    });
+    res.redirect(`http://localhost:3000/auth/success?token=${token}`);
+  }
+);
+
 module.exports = router;
