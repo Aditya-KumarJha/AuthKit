@@ -4,21 +4,23 @@ const GitHubStrategy = require("passport-github2").Strategy;
 const FacebookStrategy = require("passport-facebook").Strategy;
 const User = require("../models/userModel");
 
+const BACKEND_URL = process.env.RENDER_BACKEND_URL || "http://localhost:4000";
+
 passport.use(
   new GoogleStrategy(
     {
       clientID: process.env.GOOGLE_CLIENT_ID,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      callbackURL: "http://localhost:4000/api/auth/google/callback",
+      callbackURL: `${BACKEND_URL}/api/auth/google/callback`,
       passReqToCallback: true,
     },
     async (req, accessToken, refreshToken, profile, done) => {
       try {
-        const mode = req.query.state || "login"; 
+        const mode = req.query.state || "login";
         let user = await User.findOne({ googleId: profile.id });
 
         if (mode === "login") {
-          if (!user) return done(null, false); 
+          if (!user) return done(null, false);
         } else if (mode === "signup") {
           if (!user) {
             user = await User.create({
@@ -48,7 +50,7 @@ passport.use(
     {
       clientID: process.env.GITHUB_CLIENT_ID,
       clientSecret: process.env.GITHUB_CLIENT_SECRET,
-      callbackURL: "http://localhost:4000/api/auth/github/callback",
+      callbackURL: `${BACKEND_URL}/api/auth/github/callback`,
       passReqToCallback: true,
     },
     async (req, accessToken, refreshToken, profile, done) => {
@@ -87,8 +89,8 @@ passport.use(
     {
       clientID: process.env.FACEBOOK_CLIENT_ID,
       clientSecret: process.env.FACEBOOK_CLIENT_SECRET,
-      callbackURL: "http://localhost:4000/api/auth/facebook/callback",
-      profileFields: ["id", "emails", "name", "picture.type(large)"], 
+      callbackURL: `${BACKEND_URL}/api/auth/facebook/callback`,
+      profileFields: ["id", "emails", "name", "picture.type(large)"],
       passReqToCallback: true,
     },
     async (req, accessToken, refreshToken, profile, done) => {
