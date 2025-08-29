@@ -74,6 +74,9 @@ export default function LoginForm({ setOtpStep, setUserEmail, setForgotStep, err
       case "Facebook":
         window.location.href = `${baseUrl}/api/auth/facebook?mode=login`;
         break;
+      case "Discord":
+        window.location.href = `${baseUrl}/api/auth/discord?mode=signup`;
+        break;
       default:
         console.log(`${provider} login not implemented yet.`);
     }

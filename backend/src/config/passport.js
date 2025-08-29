@@ -2,6 +2,7 @@ const passport = require("passport");
 const GoogleStrategy = require("passport-google-oauth20").Strategy;
 const GitHubStrategy = require("passport-github2").Strategy;
 const FacebookStrategy = require("passport-facebook").Strategy;
+const DiscordStrategy = require("passport-discord").Strategy;
 const User = require("../models/userModel");
 
 const BACKEND_URL = process.env.RENDER_BACKEND_URL || "http://localhost:4000";
@@ -118,6 +119,48 @@ passport.use(
         } else {
           return done(null, user);
         }
+      } catch (err) {
+        return done(err, null);
+      }
+    }
+  )
+);
+
+passport.use(
+  new DiscordStrategy(
+    {
+      clientID: process.env.DISCORD_CLIENT_ID,
+      clientSecret: process.env.DISCORD_CLIENT_SECRET,
+      callbackURL: `${BACKEND_URL}/api/auth/discord/callback`,
+      scope: ["identify", "email"], 
+      passReqToCallback: true,
+    },
+    async (req, accessToken, refreshToken, profile, done) => {
+      try {
+        const mode = req.query.state || "login";
+        let user = await User.findOne({ discordId: profile.id });
+
+        if (mode === "login") {
+          if (!user) return done(null, false);
+        } else if (mode === "signup") {
+          if (!user) {
+            user = await User.create({
+              discordId: profile.id,
+              email: profile.email,
+              fullName: {
+                firstName: profile.username || "",
+                lastName: "",
+              },
+              provider: "discord",
+              isVerified: true,
+              profilePic: profile.avatar
+                ? `https://cdn.discordapp.com/avatars/${profile.id}/${profile.avatar}.png`
+                : "",
+            });
+          }
+        }
+
+        return done(null, user);
       } catch (err) {
         return done(err, null);
       }

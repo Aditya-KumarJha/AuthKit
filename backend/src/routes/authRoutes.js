@@ -88,4 +88,29 @@ router.get(
   }
 );
 
+router.get(
+  "/discord",
+  (req, res, next) => {
+    const mode = req.query.mode || "login";
+    passport.authenticate("discord", { scope: ["identify", "email"], state: mode })(req, res, next);
+  }
+);
+
+router.get(
+  "/discord/callback",
+  passport.authenticate("discord", {
+    session: false,
+    failureRedirect: `${FRONTEND_URL}/login?error=No+account+exists+with+this+Discord+email`,
+  }),
+  (req, res) => {
+    if (!req.user) {
+      return res.redirect(`${FRONTEND_URL}/login?error=Authentication+failed`);
+    }
+    const token = jwt.sign({ id: req.user._id }, process.env.JWT_SECRET, {
+      expiresIn: process.env.JWT_EXPIRE,
+    });
+    res.redirect(`${FRONTEND_URL}/auth/success?token=${token}`);
+  }
+);
+
 module.exports = router;
