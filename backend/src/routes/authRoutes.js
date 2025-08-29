@@ -22,6 +22,34 @@ router.post("/request-password-reset", requestPasswordReset);
 router.post("/reset-password", resetPassword);
 router.post("/resend-otp", resendOtp);
 
+const socialAuthCallback = (strategy) => (req, res, next) => {
+  passport.authenticate(strategy, { session: false }, (err, user, info) => {
+    if (err) {
+      console.error(`Authentication failed for ${strategy}.`);
+      console.error("Error details:", err.stack);
+      return res.redirect(`${FRONTEND_URL}/login?error=Authentication+failed+due+to+server+error`);
+    }
+    if (!user) {
+      if (info && info.message) {
+        return res.redirect(`${FRONTEND_URL}/login?error=${encodeURIComponent(info.message)}`);
+      }
+      return res.redirect(`${FRONTEND_URL}/login?error=Authentication+failed`);
+    }
+    req.user = user;
+    next();
+  })(req, res, next);
+};
+
+const socialAuthSuccess = (req, res) => {
+  if (!req.user) {
+    return res.redirect(`${FRONTEND_URL}/login?error=Authentication+failed`);
+  }
+  const token = jwt.sign({ id: req.user._id }, process.env.JWT_SECRET, {
+    expiresIn: process.env.JWT_EXPIRE,
+  });
+  res.redirect(`${FRONTEND_URL}/auth/success?token=${token}`);
+};
+
 router.get(
   "/google",
   (req, res, next) => {
@@ -29,17 +57,7 @@ router.get(
     passport.authenticate("google", { scope: ["profile", "email"], state: mode })(req, res, next);
   }
 );
-
-router.get(
-  "/google/callback",
-  passport.authenticate("google", { session: false, failureRedirect: `${FRONTEND_URL}/login?error=No+account+exists+with+this+Google+email` }),
-  (req, res) => {
-    const token = jwt.sign({ id: req.user._id }, process.env.JWT_SECRET, {
-      expiresIn: process.env.JWT_EXPIRE,
-    });
-    res.redirect(`${FRONTEND_URL}/auth/success?token=${token}`);
-  }
-);
+router.get("/google/callback", socialAuthCallback("google"), socialAuthSuccess);
 
 router.get(
   "/github",
@@ -48,20 +66,7 @@ router.get(
     passport.authenticate("github", { scope: ["user:email"], state: mode })(req, res, next);
   }
 );
-
-router.get(
-  "/github/callback",
-  passport.authenticate("github", {
-    session: false,
-    failureRedirect: `${FRONTEND_URL}/login?error=No+account+exists+with+this+GitHub+email`,
-  }),
-  (req, res) => {
-    const token = jwt.sign({ id: req.user._id }, process.env.JWT_SECRET, {
-      expiresIn: process.env.JWT_EXPIRE,
-    });
-    res.redirect(`${FRONTEND_URL}/auth/success?token=${token}`);
-  }
-);
+router.get("/github/callback", socialAuthCallback("github"), socialAuthSuccess);
 
 router.get(
   "/facebook",
@@ -70,23 +75,7 @@ router.get(
     passport.authenticate("facebook", { scope: ["email"], state: mode })(req, res, next);
   }
 );
-
-router.get(
-  "/facebook/callback",
-  passport.authenticate("facebook", {
-    session: false,
-    failureRedirect: `${FRONTEND_URL}/login?error=No+account+exists+with+this+Facebook+email`,
-  }),
-  (req, res) => {
-    if (!req.user) {
-      return res.redirect(`${FRONTEND_URL}/login?error=Authentication+failed`);
-    }
-    const token = jwt.sign({ id: req.user._id }, process.env.JWT_SECRET, {
-      expiresIn: process.env.JWT_EXPIRE,
-    });
-    res.redirect(`${FRONTEND_URL}/auth/success?token=${token}`);
-  }
-);
+router.get("/facebook/callback", socialAuthCallback("facebook"), socialAuthSuccess);
 
 router.get(
   "/discord",
@@ -95,22 +84,6 @@ router.get(
     passport.authenticate("discord", { scope: ["identify", "email"], state: mode })(req, res, next);
   }
 );
-
-router.get(
-  "/discord/callback",
-  passport.authenticate("discord", {
-    session: false,
-    failureRedirect: `${FRONTEND_URL}/login?error=No+account+exists+with+this+Discord+email`,
-  }),
-  (req, res) => {
-    if (!req.user) {
-      return res.redirect(`${FRONTEND_URL}/login?error=Authentication+failed`);
-    }
-    const token = jwt.sign({ id: req.user._id }, process.env.JWT_SECRET, {
-      expiresIn: process.env.JWT_EXPIRE,
-    });
-    res.redirect(`${FRONTEND_URL}/auth/success?token=${token}`);
-  }
-);
+router.get("/discord/callback", socialAuthCallback("discord"), socialAuthSuccess);
 
 module.exports = router;
