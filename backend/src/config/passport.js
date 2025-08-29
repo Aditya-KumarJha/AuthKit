@@ -185,40 +185,58 @@ passport.use(
       try {
         const mode = req.query.state || "login";
         
-        // ADD THIS LINE: Log the ID we are searching for
-        console.log("Searching for user with linkedinId:", profile.sub);
+        console.log("--- LinkedIn Auth Flow Started ---");
+        console.log("Mode:", mode);
+        console.log("LinkedIn Profile ID (sub):", profile.sub);
 
+        // Step 1: Try to find an existing user
         let user = await User.findOne({ linkedinId: profile.sub });
-
-        // ADD THIS LINE: Log the result of the database search
-        console.log("Result of findOne:", user ? "User found with ID " + user._id : "No user found");
+        console.log("User findOne result:", user ? "Found existing user." : "No existing user found.");
 
         if (mode === "login") {
-          if (!user) return done(null, false);
+          if (!user) {
+            console.log("Login failed: User not found in DB. Redirecting to login page.");
+            return done(null, false);
+          }
         } else if (mode === "signup") {
           if (!user) {
-            let firstName = profile.given_name || "";
-            let lastName = profile.family_name || "";
-            if (!firstName && !lastName && profile.name) {
-              const nameParts = profile.name.split(" ");
-              firstName = nameParts[0] || "";
-              lastName = nameParts.slice(1).join(" ") || "";
+            try {
+              // Step 2: Create a new user if none exists
+              console.log("Attempting to create a new user...");
+              const firstName = profile.given_name || (profile.name?.split(" ")[0] || "");
+              const lastName = profile.family_name || (profile.name?.split(" ").slice(1).join(" ") || "");
+
+              user = await User.create({
+                linkedinId: profile.sub,
+                email: profile.email || "",
+                fullName: {
+                  firstName: firstName,
+                  lastName: lastName,
+                },
+                provider: "linkedin",
+                isVerified: true,
+                profilePic: profile.picture || "",
+              });
+              
+              // Step 3: Log the new user's ID to prove creation
+              console.log("New user created successfully. User ID:", user._id);
+            } catch (createError) {
+              console.error("User creation failed! Check database connection or schema errors.");
+              console.error(createError);
+              return done(createError, null);
             }
-            user = await User.create({
-              linkedinId: profile.sub,
-              email: profile.email || "",
-              fullName: {
-                firstName: firstName,
-                lastName: lastName,
-              },
-              provider: "linkedin",
-              isVerified: true,
-              profilePic: profile.picture || "",
-            });
+          } else {
+            console.log("User already exists, skipping creation and logging in.");
           }
         }
+
+        console.log("Auth Flow successful. Calling done() with user.");
+        console.log("--- LinkedIn Auth Flow Ended ---");
         return done(null, user);
+
       } catch (err) {
+        console.error("An unhandled error occurred in the LinkedIn strategy.");
+        console.error(err);
         return done(err, null);
       }
     }
