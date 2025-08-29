@@ -23,18 +23,31 @@ router.post("/reset-password", resetPassword);
 router.post("/resend-otp", resendOtp);
 
 const socialAuthCallback = (strategy) => (req, res, next) => {
+  console.log(`[AUTH-FLOW] Initiating callback for ${strategy} authentication.`);
   passport.authenticate(strategy, { session: false }, (err, user, info) => {
     if (err) {
-      console.error(`Authentication failed for ${strategy}.`);
-      console.error("Error details:", err.stack);
-      return res.redirect(`${FRONTEND_URL}/login?error=Authentication+failed+due+to+server+error`);
+      console.error(`[AUTH-ERROR] Authentication failed for ${strategy}.`);
+      console.error("[AUTH-ERROR] Error Details:", err.stack);
+      
+      let errorMessage = "Authentication+failed+due+to+server+error";
+      if (err.name === 'TokenError' && err.message) {
+        errorMessage = encodeURIComponent(err.message);
+      } else if (err.message) {
+        errorMessage = encodeURIComponent(err.message);
+      }
+      
+      console.error("[AUTH-ERROR] Redirection URL:", `${FRONTEND_URL}/login?error=${errorMessage}`);
+      return res.redirect(`${FRONTEND_URL}/login?error=${errorMessage}`);
     }
     if (!user) {
+      console.warn(`[AUTH-WARN] No user found for ${strategy}.`);
       if (info && info.message) {
+        console.warn(`[AUTH-WARN] Authentication info message: "${info.message}".`);
         return res.redirect(`${FRONTEND_URL}/login?error=${encodeURIComponent(info.message)}`);
       }
       return res.redirect(`${FRONTEND_URL}/login?error=Authentication+failed`);
     }
+    console.log(`[AUTH-SUCCESS] User authenticated successfully with ${strategy}.`);
     req.user = user;
     next();
   })(req, res, next);
@@ -42,11 +55,14 @@ const socialAuthCallback = (strategy) => (req, res, next) => {
 
 const socialAuthSuccess = (req, res) => {
   if (!req.user) {
+    console.error("[AUTH-ERROR] User object not present after successful authentication.");
     return res.redirect(`${FRONTEND_URL}/login?error=Authentication+failed`);
   }
+  console.log(`[AUTH-SUCCESS] Generating JWT for user ID: ${req.user._id}`);
   const token = jwt.sign({ id: req.user._id }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRE,
   });
+  console.log(`[AUTH-SUCCESS] Redirecting to success URL: ${FRONTEND_URL}/auth/success?token=${token}`);
   res.redirect(`${FRONTEND_URL}/auth/success?token=${token}`);
 };
 
