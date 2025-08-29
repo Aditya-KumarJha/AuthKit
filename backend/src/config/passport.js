@@ -184,21 +184,23 @@ passport.use(
     async (req, accessToken, refreshToken, profile, done) => {
       try {
         const mode = req.query.state || "login";
-        let user = await User.findOne({ linkedinId: profile.id });
+        
+        let user = await User.findOne({ linkedinId: profile.sub });
+
         if (mode === "login") {
           if (!user) return done(null, false);
         } else if (mode === "signup") {
           if (!user) {
             user = await User.create({
-              linkedinId: profile.id,
-              email: profile.emails?.[0]?.value || "",
+              linkedinId: profile.sub,
+              email: profile.email || "",
               fullName: {
-                firstName: profile.name?.firstName || "",
-                lastName: profile.name?.lastName || "",
+                firstName: profile.given_name || "",
+                lastName: profile.family_name || "",
               },
               provider: "linkedin",
               isVerified: true,
-              profilePic: profile.photos?.[0]?.value || "",
+              profilePic: profile.picture || "",
             });
           }
         }
