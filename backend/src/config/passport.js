@@ -101,7 +101,7 @@ passport.use(
 
         if (!user) {
           if (mode === "login") {
-            return done(null, false); 
+            return done(null, false);
           } else if (mode === "signup") {
             user = await User.create({
               facebookId: profile.id,
@@ -114,7 +114,7 @@ passport.use(
               isVerified: true,
               profilePic: profile.photos?.[0]?.value || "",
             });
-            return done(null, user); 
+            return done(null, user);
           }
         } else {
           return done(null, user);
@@ -132,7 +132,7 @@ passport.use(
       clientID: process.env.DISCORD_CLIENT_ID,
       clientSecret: process.env.DISCORD_CLIENT_SECRET,
       callbackURL: `${BACKEND_URL}/api/auth/discord/callback`,
-      scope: ["identify", "email"], 
+      scope: ["identify", "email"],
       passReqToCallback: true,
     },
     async (req, accessToken, refreshToken, profile, done) => {
@@ -144,6 +144,9 @@ passport.use(
           if (!user) return done(null, false);
         } else if (mode === "signup") {
           if (!user) {
+            if (!profile.email) {
+                return done(new Error("Discord profile does not have a verified email. Cannot sign up."), null);
+            }
             user = await User.create({
               discordId: profile.id,
               email: profile.email,
