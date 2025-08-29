@@ -187,10 +187,11 @@ passport.use(
         
         console.log("--- LinkedIn Auth Flow Started ---");
         console.log("Mode:", mode);
-        console.log("LinkedIn Profile ID (sub):", profile.sub);
+        // Corrected console.log to use profile.id
+        console.log("LinkedIn Profile ID:", profile.id);
 
-        // Step 1: Try to find an existing user
-        let user = await User.findOne({ linkedinId: profile.sub });
+        // Step 1: Try to find an existing user using profile.id
+        let user = await User.findOne({ linkedinId: profile.id });
         console.log("User findOne result:", user ? "Found existing user." : "No existing user found.");
 
         if (mode === "login") {
@@ -207,7 +208,8 @@ passport.use(
               const lastName = profile.family_name || (profile.name?.split(" ").slice(1).join(" ") || "");
 
               user = await User.create({
-                linkedinId: profile.sub,
+                // Corrected linkedinId to use profile.id
+                linkedinId: profile.id,
                 email: profile.email || "",
                 fullName: {
                   firstName: firstName,
