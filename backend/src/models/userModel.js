@@ -22,9 +22,7 @@ const userSchema = new mongoose.Schema(
     password: {
       type: String,
       minlength: 6,
-      required: function () {
-        return !this.googleId && !this.githubId && !this.facebookId && !this.walletAddress && !this.discordId && !this.linkedinId;;
-      },
+      required: false,
     },
     otp: {
       code: { type: String },
@@ -52,6 +50,16 @@ const userSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+userSchema.pre('save', function(next) {
+  const hasSocialId = this.googleId || this.githubId || this.facebookId || this.walletAddress || this.discordId || this.linkedinId;
+
+  if (!hasSocialId && !this.password) {
+    this.invalidate('password', 'Path `password` is required.', null, 'required');
+  }
+
+  next();
+});
 
 const User = mongoose.model("User", userSchema);
 
