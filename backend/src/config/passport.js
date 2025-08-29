@@ -187,13 +187,10 @@ passport.use(
         
         console.log("--- LinkedIn Auth Flow Started ---");
         console.log("Mode:", mode);
-        // Corrected console.log to use profile.id
         console.log("LinkedIn Profile ID:", profile.id);
 
-        // ADDED: Log the full profile object here
         console.log("Full LinkedIn Profile Object:", profile);
 
-        // Step 1: Try to find an existing user using profile.id
         let user = await User.findOne({ linkedinId: profile.id });
         console.log("User findOne result:", user ? "Found existing user." : "No existing user found.");
 
@@ -205,24 +202,11 @@ passport.use(
         } else if (mode === "signup") {
           if (!user) {
             try {
-              // Step 2: Create a new user if none exists
               console.log("Attempting to create a new user...");
-              let firstName = "";
-              let lastName = "";
+              let firstName = profile._json.given_name || "";
+              let lastName = profile._json.family_name || "";
               
-              if (profile.given_name || profile.family_name) {
-                  firstName = profile.given_name || "";
-                  lastName = profile.family_name || "";
-              }
-              else if (profile.name) {
-                  const nameParts = profile.name.split(" ");
-                  firstName = nameParts[0] || "";
-                  lastName = nameParts.slice(1).join(" ") || "";
-              }
-              // If none of the above are available, the fields will remain empty strings.
-
               user = await User.create({
-                // Corrected linkedinId to use profile.id
                 linkedinId: profile.id,
                 email: profile.email || "",
                 fullName: {
@@ -234,7 +218,6 @@ passport.use(
                 profilePic: profile.picture || "",
               });
               
-              // Step 3: Log the new user's ID to prove creation
               console.log("New user created successfully. User ID:", user._id);
             } catch (createError) {
               console.error("User creation failed! Check database connection or schema errors.");
