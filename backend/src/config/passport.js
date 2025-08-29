@@ -171,4 +171,42 @@ passport.use(
   )
 );
 
+passport.use(
+  new LinkedInStrategy(
+    {
+      clientID: process.env.LINKEDIN_CLIENT_ID,
+      clientSecret: process.env.LINKEDIN_CLIENT_SECRET,
+      callbackURL: `${BACKEND_URL}/api/auth/linkedin/callback`,
+      scope: ["r_liteprofile", "r_emailaddress"],
+      passReqToCallback: true,
+    },
+    async (req, accessToken, refreshToken, profile, done) => {
+      try {
+        const mode = req.query.state || "login";
+        let user = await User.findOne({ linkedinId: profile.id });
+        if (mode === "login") {
+          if (!user) return done(null, false);
+        } else if (mode === "signup") {
+          if (!user) {
+            user = await User.create({
+              linkedinId: profile.id,
+              email: profile.emails?.[0]?.value || "",
+              fullName: {
+                firstName: profile.name?.firstName || "",
+                lastName: profile.name?.lastName || "",
+              },
+              provider: "linkedin",
+              isVerified: true,
+              profilePic: profile.photos?.[0]?.value || "",
+            });
+          }
+        }
+        return done(null, user);
+      } catch (err) {
+        return done(err, null);
+      }
+    }
+  )
+);
+
 module.exports = passport;

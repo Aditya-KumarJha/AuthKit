@@ -91,6 +91,9 @@ export default function SignupForm({ setOtpStep, setUserEmail }: Props) {
       case "Discord":
         window.location.href = `${baseUrl}/api/auth/discord?mode=signup`;
         break;
+      case "LinkedIn":
+        window.location.href = `${baseUrl}/api/auth/linkedin?mode=signup`;
+        break;
       default:
         console.log(`${provider} login not implemented yet.`);
     }

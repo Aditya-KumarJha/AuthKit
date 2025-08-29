@@ -23,7 +23,7 @@ const userSchema = new mongoose.Schema(
       type: String,
       minlength: 6,
       required: function () {
-        return !this.googleId && !this.githubId && !this.facebookId && !this.walletAddress && !this.discordId;
+        return !this.googleId && !this.githubId && !this.facebookId && !this.walletAddress && !this.discordId && !this.linkedinId;;
       },
     },
     otp: {
@@ -34,6 +34,7 @@ const userSchema = new mongoose.Schema(
     githubId: { type: String, unique: true, sparse: true },
     facebookId: { type: String, unique: true, sparse: true },
     discordId: { type: String, unique: true, sparse: true },
+    linkedinId: { type: String, unique: true, sparse: true },
     walletAddress: { type: String, unique: true, sparse: true },
     profilePic: {
       type: String,
@@ -43,7 +44,7 @@ const userSchema = new mongoose.Schema(
     isVerified: { type: Boolean, default: false },
     provider: {
       type: String,
-      enum: ["email", "google", "github", "facebook", "web3", "discord"],
+      enum: ["email", "google", "github", "facebook", "web3", "discord", "linkedin"],
       default: "email",
     },
     resetPasswordToken: { type: String },
