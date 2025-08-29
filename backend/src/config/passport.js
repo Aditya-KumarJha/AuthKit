@@ -185,59 +185,34 @@ passport.use(
       try {
         const mode = req.query.state || "login";
         
-        console.log("--- LinkedIn Auth Flow Started ---");
-        console.log("Mode:", mode);
-        console.log("LinkedIn Profile ID:", profile.id);
-
-        console.log("Full LinkedIn Profile Object:", profile);
-
         let user = await User.findOne({ linkedinId: profile.id });
-        console.log("User findOne result:", user ? "Found existing user." : "No existing user found.");
 
         if (mode === "login") {
           if (!user) {
-            console.log("Login failed: User not found in DB. Redirecting to login page.");
             return done(null, false);
           }
         } else if (mode === "signup") {
           if (!user) {
-            try {
-              console.log("Attempting to create a new user...");
-              let firstName = profile._json.given_name || "";
-              let lastName = profile._json.family_name || "";
-              
-              user = await User.create({
-                linkedinId: profile.id,
-                email: profile.email || "",
-                fullName: {
-                  firstName: firstName,
-                  lastName: lastName,
-                },
-                provider: "linkedin",
-                isVerified: true,
-                profilePic: profile.picture || "",
-              });
-              
-              console.log("New user created successfully. User ID:", user._id);
-            } catch (createError) {
-              console.error("User creation failed! Check database connection or schema errors.");
-              console.error(createError);
-              return done(createError, null);
-            }
-          } else {
-            console.log("User already exists, skipping creation and logging in.");
+            let firstName = profile._json.given_name || "";
+            let lastName = profile._json.family_name || "";
+            
+            user = await User.create({
+              linkedinId: profile.id,
+              email: profile.email || "",
+              fullName: {
+                firstName: firstName,
+                lastName: lastName,
+              },
+              provider: "linkedin",
+              isVerified: true,
+              profilePic: profile.picture || "",
+            });
           }
         }
-
-        console.log("Auth Flow successful. Calling done() with user.");
-        console.log("--- LinkedIn Auth Flow Ended ---");
         return done(null, user);
-
       } catch (err) {
-        console.error("An unhandled error occurred in the LinkedIn strategy.");
-        console.error(err);
-        return done(err, null);
-      }
+            return done(err, null);
+        }
     }
   )
 );
