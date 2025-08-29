@@ -3,6 +3,7 @@ const GoogleStrategy = require("passport-google-oauth20").Strategy;
 const GitHubStrategy = require("passport-github2").Strategy;
 const FacebookStrategy = require("passport-facebook").Strategy;
 const DiscordStrategy = require("passport-discord").Strategy;
+const LinkedInStrategy = require("passport-linkedin-oauth2").Strategy;
 const User = require("../models/userModel");
 
 const BACKEND_URL = process.env.RENDER_BACKEND_URL || "http://localhost:4000";
