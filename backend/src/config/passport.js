@@ -98,10 +98,10 @@ passport.use(
         const mode = req.query.state || "login";
         let user = await User.findOne({ facebookId: profile.id });
 
-        if (mode === "login") {
-          if (!user) return done(null, false);
-        } else if (mode === "signup") {
-          if (!user) {
+        if (!user) {
+          if (mode === "login") {
+            return done(null, false); 
+          } else if (mode === "signup") {
             user = await User.create({
               facebookId: profile.id,
               email: profile.emails?.[0]?.value || "",
@@ -113,10 +113,11 @@ passport.use(
               isVerified: true,
               profilePic: profile.photos?.[0]?.value || "",
             });
+            return done(null, user); 
           }
+        } else {
+          return done(null, user);
         }
-
-        return done(null, user);
       } catch (err) {
         return done(err, null);
       }
