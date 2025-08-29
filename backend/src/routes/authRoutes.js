@@ -29,7 +29,7 @@ const socialAuthCallback = (strategy) => (req, res, next) => {
       console.error(`[AUTH-ERROR] Authentication failed for ${strategy}.`);
       console.error("[AUTH-ERROR] Error Details:", err.stack);
       
-      let errorMessage = "Authentication+failed+due+to+server+error";
+      let errorMessage = "Authentication+failed";
       if (err.name === 'TokenError' && err.message) {
         errorMessage = encodeURIComponent(err.message);
       } else if (err.message) {
