@@ -185,7 +185,13 @@ passport.use(
       try {
         const mode = req.query.state || "login";
         
+        // ADD THIS LINE: Log the ID we are searching for
+        console.log("Searching for user with linkedinId:", profile.sub);
+
         let user = await User.findOne({ linkedinId: profile.sub });
+
+        // ADD THIS LINE: Log the result of the database search
+        console.log("Result of findOne:", user ? "User found with ID " + user._id : "No user found");
 
         if (mode === "login") {
           if (!user) return done(null, false);
