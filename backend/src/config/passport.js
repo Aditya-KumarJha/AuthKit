@@ -178,7 +178,7 @@ passport.use(
       clientID: process.env.LINKEDIN_CLIENT_ID,
       clientSecret: process.env.LINKEDIN_CLIENT_SECRET,
       callbackURL: `${BACKEND_URL}/api/auth/linkedin/callback`,
-      scope: ["r_liteprofile", "r_emailaddress"],
+      scope: ["openid", "profile", "email"],
       passReqToCallback: true,
     },
     async (req, accessToken, refreshToken, profile, done) => {

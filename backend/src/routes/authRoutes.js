@@ -106,7 +106,7 @@ router.get(
   "/linkedin",
   (req, res, next) => {
     const mode = req.query.mode || "login";
-    passport.authenticate("linkedin", { scope: ["r_liteprofile", "r_emailaddress"], state: mode })(req, res, next);
+    passport.authenticate("linkedin", { scope: ["openid", "profile", "email"], state: mode })(req, res, next);
   }
 );
 router.get("/linkedin/callback", socialAuthCallback("linkedin"), socialAuthSuccess);
