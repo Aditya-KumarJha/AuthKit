@@ -190,6 +190,9 @@ passport.use(
         // Corrected console.log to use profile.id
         console.log("LinkedIn Profile ID:", profile.id);
 
+        // ADDED: Log the full profile object here
+        console.log("Full LinkedIn Profile Object:", profile);
+
         // Step 1: Try to find an existing user using profile.id
         let user = await User.findOne({ linkedinId: profile.id });
         console.log("User findOne result:", user ? "Found existing user." : "No existing user found.");
@@ -206,18 +209,17 @@ passport.use(
               console.log("Attempting to create a new user...");
               let firstName = "";
               let lastName = "";
-
-              // Try to get from given_name and family_name first
+              
               if (profile.given_name || profile.family_name) {
                   firstName = profile.given_name || "";
                   lastName = profile.family_name || "";
               }
-              // Fallback: split the full name if available
               else if (profile.name) {
                   const nameParts = profile.name.split(" ");
                   firstName = nameParts[0] || "";
                   lastName = nameParts.slice(1).join(" ") || "";
               }
+              // If none of the above are available, the fields will remain empty strings.
 
               user = await User.create({
                 // Corrected linkedinId to use profile.id
@@ -256,4 +258,5 @@ passport.use(
     }
   )
 );
+
 module.exports = passport;
