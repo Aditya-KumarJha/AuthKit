@@ -23,7 +23,7 @@ const userSchema = new mongoose.Schema(
       type: String,
       minlength: 6,
       required: function () {
-        return !this.googleId && !this.githubId && !this.facebookId && !this.walletAddress;
+        return !this.googleId && !this.githubId && !this.facebookId && !this.walletAddress && !this.discordId;;
       },
     },
     otp: {
