@@ -204,8 +204,20 @@ passport.use(
             try {
               // Step 2: Create a new user if none exists
               console.log("Attempting to create a new user...");
-              const firstName = profile.given_name || (profile.name?.split(" ")[0] || "");
-              const lastName = profile.family_name || (profile.name?.split(" ").slice(1).join(" ") || "");
+              let firstName = "";
+              let lastName = "";
+
+              // Try to get from given_name and family_name first
+              if (profile.given_name || profile.family_name) {
+                  firstName = profile.given_name || "";
+                  lastName = profile.family_name || "";
+              }
+              // Fallback: split the full name if available
+              else if (profile.name) {
+                  const nameParts = profile.name.split(" ");
+                  firstName = nameParts[0] || "";
+                  lastName = nameParts.slice(1).join(" ") || "";
+              }
 
               user = await User.create({
                 // Corrected linkedinId to use profile.id
@@ -244,5 +256,4 @@ passport.use(
     }
   )
 );
-
 module.exports = passport;
