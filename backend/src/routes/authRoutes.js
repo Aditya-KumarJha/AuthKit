@@ -78,6 +78,9 @@ router.get(
     failureRedirect: `${FRONTEND_URL}/login?error=No+account+exists+with+this+Facebook+email`,
   }),
   (req, res) => {
+    if (!req.user) {
+      return res.redirect(`${FRONTEND_URL}/login?error=Authentication+failed`);
+    }
     const token = jwt.sign({ id: req.user._id }, process.env.JWT_SECRET, {
       expiresIn: process.env.JWT_EXPIRE,
     });
