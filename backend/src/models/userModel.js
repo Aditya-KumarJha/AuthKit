@@ -33,6 +33,7 @@ const userSchema = new mongoose.Schema(
     googleId: { type: String, unique: true, sparse: true },
     githubId: { type: String, unique: true, sparse: true },
     facebookId: { type: String, unique: true, sparse: true },
+    discordId: { type: String, unique: true, sparse: true },
     walletAddress: { type: String, unique: true, sparse: true },
     profilePic: {
       type: String,
