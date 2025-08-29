@@ -191,12 +191,19 @@ passport.use(
           if (!user) return done(null, false);
         } else if (mode === "signup") {
           if (!user) {
+            let firstName = profile.given_name || "";
+            let lastName = profile.family_name || "";
+            if (!firstName && !lastName && profile.name) {
+              const nameParts = profile.name.split(" ");
+              firstName = nameParts[0] || "";
+              lastName = nameParts.slice(1).join(" ") || "";
+            }
             user = await User.create({
               linkedinId: profile.sub,
               email: profile.email || "",
               fullName: {
-                firstName: profile.given_name || "",
-                lastName: profile.family_name || "",
+                firstName: firstName,
+                lastName: lastName,
               },
               provider: "linkedin",
               isVerified: true,
