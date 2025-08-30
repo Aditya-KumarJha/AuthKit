@@ -123,7 +123,7 @@ export default function LoginForm({ setOtpStep, setUserEmail, setForgotStep, err
       case "LinkedIn":
         window.location.href = `${baseUrl}/api/auth/linkedin?mode=login`;
         break;
-      case "WalletConnect":
+      case "Connect Wallet":
         handleWalletLogin();
         break;
       default:

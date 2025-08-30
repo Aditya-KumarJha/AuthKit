@@ -147,7 +147,7 @@ export default function SignupForm({ setOtpStep, setUserEmail }: Props) {
       case "LinkedIn":
         window.location.href = `${baseUrl}/api/auth/linkedin?mode=signup`;
         break;
-      case "WalletConnect":
+      case "Connect Wallet":
         handleWalletConnect();
         break;
       default:
