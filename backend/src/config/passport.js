@@ -178,10 +178,6 @@ passport.use(
     },
     async (req, accessToken, refreshToken, profile, done) => {
       try {
-
-         console.log("--- Full LinkedIn Profile Received ---");
-        console.log(JSON.stringify(profile, null, 2));
-        console.log("--------------------------------------");
         const mode = req.query.state || "login";
         
         let user = await User.findOne({ linkedinId: profile.id });
@@ -196,8 +192,8 @@ passport.use(
               linkedinId: profile.id,
               email: profile.email || null,
               fullName: {
-                firstName: profile.name?.givenName || "",
-                lastName: profile.name?.familyName || "",
+                firstName: profile.givenName || "",
+                lastName: profile.familyName || "",
               },
               provider: "linkedin",
               isVerified: true,
