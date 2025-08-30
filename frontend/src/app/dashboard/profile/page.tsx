@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState, ChangeEvent, FormEvent } from "react";
+import { useEffect, useState, ChangeEvent, FormEvent, KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
-import api from "@/utils/axios"; 
+import api from "@/utils/axios";
 import toast from "react-hot-toast";
 import { Camera, Mail, Loader2, ShieldAlert, X } from "lucide-react";
 import Sidebar from "@/components/dashboard/Sidebar";
@@ -23,13 +23,14 @@ export default function ProfilePage() {
 
   const [emailVerificationRequired, setEmailVerificationRequired] = useState(false);
   const [otp, setOtp] = useState("");
+  const [countdown, setCountdown] = useState(0);
 
   const [formData, setFormData] = useState({ firstName: "", lastName: "", email: "" });
   const [profilePicFile, setProfilePicFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-
+  const [isFormDirty, setIsFormDirty] = useState(false);
+  
   const isSocialProvider = user && !['email', 'web3'].includes(user.provider);
-
   const isNameLocked = !!(isSocialProvider && user?.fullName?.firstName);
   const isEmailLocked = !!(isSocialProvider && user?.email);
 
@@ -54,6 +55,25 @@ export default function ProfilePage() {
       .finally(() => setLoading(false));
   }, [router]);
 
+  useEffect(() => {
+    if (!user) return;
+    const hasTextChanged =
+      formData.firstName !== (user.fullName?.firstName || "") ||
+      formData.lastName !== (user.fullName?.lastName || "") ||
+      formData.email !== (user.email || "");
+    const hasFileChanged = !!profilePicFile;
+    setIsFormDirty(hasTextChanged || hasFileChanged);
+  }, [formData, profilePicFile, user]);
+
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (countdown > 0) {
+      timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+    }
+    return () => clearTimeout(timer);
+  }, [countdown]);
+
+
   const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
@@ -69,21 +89,27 @@ export default function ProfilePage() {
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSubmitting(true);
-    const toastId = toast.loading("Updating profile...");
+    const toastId = toast.loading("Saving changes...");
+
+    if (!user) {
+        toast.error("User data not loaded.", { id: toastId });
+        setIsSubmitting(false);
+        return;
+    }
 
     const token = localStorage.getItem("authToken");
     if (!token) {
-      toast.error("Session expired. Please log in again.", { id: toastId });
+      toast.error("Session expired.", { id: toastId });
+      setIsSubmitting(false);
       return router.replace('/login');
     }
 
     const formPayload = new FormData();
-    formPayload.append("firstName", formData.firstName);
-    formPayload.append("lastName", formData.lastName);
-    formPayload.append("email", formData.email);
-    if (profilePicFile) {
-      formPayload.append("profilePic", profilePicFile);
-    }
+
+    if (formData.firstName !== (user.fullName?.firstName || "")) formPayload.append("firstName", formData.firstName);
+    if (formData.lastName !== (user.fullName?.lastName || "")) formPayload.append("lastName", formData.lastName);
+    if (formData.email !== (user.email || "")) formPayload.append("email", formData.email);
+    if (profilePicFile) formPayload.append("profilePic", profilePicFile);
 
     try {
       const response = await api.put("/api/users/me", formPayload, {
@@ -93,9 +119,10 @@ export default function ProfilePage() {
       if (response.data.emailVerificationRequired) {
         toast.success(response.data.message, { id: toastId, duration: 4000 });
         setEmailVerificationRequired(true);
+        setCountdown(30); // Start the timer on the modal
       } else {
-        setUser(response.data); 
-        setPreviewUrl(null); 
+        setUser(response.data);
+        setPreviewUrl(null);
         toast.success("Profile updated successfully!", { id: toastId });
       }
     } catch (error: any) {
@@ -108,6 +135,7 @@ export default function ProfilePage() {
   };
 
   const handleOtpSubmit = async () => {
+    if (otp.length < 6 || isSubmitting) return;
     setIsSubmitting(true);
     const toastId = toast.loading("Verifying OTP...");
     const token = localStorage.getItem("authToken");
@@ -116,9 +144,10 @@ export default function ProfilePage() {
       const response = await api.post("/api/users/me/verify-email", { otp }, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setUser(response.data.user); 
+      setUser(response.data.user);
+      setFormData({ ...formData, email: response.data.user.email });
       toast.success(response.data.message, { id: toastId });
-      setEmailVerificationRequired(false); 
+      setEmailVerificationRequired(false);
       setOtp("");
     } catch (error: any) {
       const errorMessage = error.response?.data?.message || "OTP verification failed.";
@@ -127,8 +156,9 @@ export default function ProfilePage() {
       setIsSubmitting(false);
     }
   };
-
+  
   const handleResendOtp = async () => {
+    if (countdown > 0) return;
     const toastId = toast.loading("Resending OTP...");
     const token = localStorage.getItem("authToken");
      try {
@@ -136,11 +166,20 @@ export default function ProfilePage() {
          headers: { Authorization: `Bearer ${token}` }
        });
        toast.success(response.data.message, { id: toastId });
+       setCountdown(30); 
      } catch (error: any) {
        const errorMessage = error.response?.data?.message || "Failed to resend OTP.";
        toast.error(`Error: ${errorMessage}`, { id: toastId });
      }
   };
+
+  const handleOtpKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleOtpSubmit();
+    }
+  };
+
 
   if (loading) {
     return (
@@ -163,18 +202,14 @@ export default function ProfilePage() {
                   <X size={20}/>
                </button>
               <h3 className="text-xl font-bold mb-2">Verify Your New Email</h3>
-              <p className="text-gray-600 dark:text-gray-400 mb-4 text-sm">An OTP has been sent to <span className="font-semibold text-cyan-500">{formData.email}</span>. Please enter it below.</p>
-              <input
-                type="text"
-                value={otp}
-                onChange={(e) => setOtp(e.target.value)}
-                maxLength={6}
-                className="w-full text-center text-2xl tracking-[0.5em] px-4 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-cyan-500 focus:border-cyan-500 mb-4"
-              />
+              <p className="text-gray-600 dark:text-gray-400 mb-4 text-sm">An OTP has been sent to <span className="font-semibold text-cyan-500">{formData.email}</span>.</p>
+              <input type="text" value={otp} onKeyDown={handleOtpKeyDown} onChange={(e) => setOtp(e.target.value)} maxLength={6} className="w-full text-center text-2xl tracking-[0.5em] px-4 py-2 bg-gray-100 dark:bg-gray-800 border rounded-lg focus:ring-cyan-500 focus:border-cyan-500 mb-4" />
               <button onClick={handleOtpSubmit} disabled={isSubmitting || otp.length < 6} className="w-full mb-2 px-6 py-2 bg-cyan-500 hover:bg-cyan-600 text-white font-semibold rounded-lg shadow-md transition disabled:bg-gray-400 flex items-center justify-center">
                  {isSubmitting ? <Loader2 className="animate-spin mr-2" size={18} /> : null} Verify & Update
               </button>
-              <button onClick={handleResendOtp} className="text-xs text-gray-500 hover:underline">Didn't receive code? Resend</button>
+              <button onClick={handleResendOtp} disabled={countdown > 0} className="text-xs text-gray-500 hover:underline disabled:cursor-not-allowed disabled:opacity-50">
+                {countdown > 0 ? `Resend in ${countdown}s` : "Didn't receive code? Resend"}
+              </button>
             </div>
           </div>
         )}
@@ -183,12 +218,7 @@ export default function ProfilePage() {
           <form onSubmit={handleSubmit}>
             <div className="flex flex-col md:flex-row items-center gap-8 mb-8">
               <div className="relative">
-                <img
-                  src={previewUrl || user?.profilePic || `https://avatar.vercel.sh/${user?._id}.png`}
-                  alt="Profile Preview"
-                  className="w-32 h-32 rounded-full object-cover border-4 border-cyan-500"
-                  onError={(e) => { e.currentTarget.src = `https://avatar.vercel.sh/${user?._id}.png`}}
-                />
+                <img src={previewUrl || user?.profilePic || `https://avatar.vercel.sh/${user?._id}.png`} alt="Profile Preview" className="w-32 h-32 rounded-full object-cover border-4 border-cyan-500" onError={(e) => { e.currentTarget.src = `https://avatar.vercel.sh/${user?._id}.png`}} />
                 <label htmlFor="profilePicInput" className="absolute bottom-1 right-1 bg-gray-800 text-white p-2 rounded-full cursor-pointer hover:bg-gray-700 transition">
                   <Camera size={18} />
                   <input id="profilePicInput" type="file" accept="image/png, image/jpeg, image/gif" className="hidden" onChange={handleFileChange} disabled={isSubmitting} />
@@ -201,26 +231,24 @@ export default function ProfilePage() {
                 </p>
               </div>
             </div>
-
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                 <div>
                   <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">First Name</label>
-                  <input id="firstName" name="firstName" type="text" value={formData.firstName} onChange={handleInputChange} disabled={isSubmitting || isNameLocked} className="w-full px-4 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-cyan-500 focus:border-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed" />
+                  <input id="firstName" name="firstName" type="text" value={formData.firstName} onChange={handleInputChange} disabled={isSubmitting || isNameLocked} className="w-full px-4 py-2 bg-gray-100 dark:bg-gray-800 border rounded-lg focus:ring-cyan-500 focus:border-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed" />
                   {isNameLocked && <p className="text-xs text-yellow-600 mt-1 flex items-center gap-1"><ShieldAlert size={12}/>Your name is managed by your social provider.</p>}
                 </div>
                 <div>
                   <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Last Name</label>
-                  <input id="lastName" name="lastName" type="text" value={formData.lastName} onChange={handleInputChange} disabled={isSubmitting || isNameLocked} className="w-full px-4 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-cyan-500 focus:border-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed" />
+                  <input id="lastName" name="lastName" type="text" value={formData.lastName} onChange={handleInputChange} disabled={isSubmitting || isNameLocked} className="w-full px-4 py-2 bg-gray-100 dark:bg-gray-800 border rounded-lg focus:ring-cyan-500 focus:border-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed" />
                 </div>
                 <div className="md:col-span-2">
                    <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email Address</label>
-                   <input id="email" name="email" type="email" value={formData.email} onChange={handleInputChange} disabled={isSubmitting || isEmailLocked} className="w-full px-4 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg focus:ring-cyan-500 focus:border-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed" />
+                   <input id="email" name="email" type="email" value={formData.email} onChange={handleInputChange} disabled={isSubmitting || isEmailLocked} className="w-full px-4 py-2 bg-gray-100 dark:bg-gray-800 border rounded-lg focus:ring-cyan-500 focus:border-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed" />
                    {isEmailLocked && <p className="text-xs text-yellow-600 mt-1 flex items-center gap-1"><ShieldAlert size={12}/>Your email is managed by your social provider.</p>}
                 </div>
             </div>
-
             <div className="flex justify-end">
-              <button type="submit" disabled={isSubmitting} className="px-6 py-2 bg-cyan-500 hover:bg-cyan-600 text-white font-semibold rounded-lg shadow-md transition disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center">
+              <button type="submit" disabled={!isFormDirty || isSubmitting} className="px-6 py-2 bg-cyan-500 hover:bg-cyan-600 text-white font-semibold rounded-lg shadow-md transition disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center">
                 {isSubmitting ? <Loader2 className="animate-spin mr-2" size={18} /> : null}
                 {isSubmitting ? "Saving..." : "Save Changes"}
               </button>
