@@ -117,8 +117,10 @@ export default function SignupForm({ setOtpStep, setUserEmail }: Props) {
 
       const { token, user } = await verifyResponse.json();
 
-      console.log("Authentication successful!", { token, user });
       alert("Wallet connected successfully!");
+      localStorage.setItem('authToken', token);
+      window.location.href = '/dashboard';
+      
     } catch (error) {
       console.error("Wallet connection failed:", error);
       if (error instanceof Error) {

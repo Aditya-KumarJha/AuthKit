@@ -93,8 +93,10 @@ export default function LoginForm({ setOtpStep, setUserEmail, setForgotStep, err
         throw new Error(errorData.message || "Signature verification failed.");
       }
       const { token, user } = await verifyResponse.json();
-      console.log("Authentication successful!", { token, user });
       alert("Wallet connected successfully for login!");
+      localStorage.setItem('authToken', token);
+      window.location.href = '/dashboard';
+
     } catch (error) {
       console.error("Wallet login failed:", error);
       if (error instanceof Error) {
