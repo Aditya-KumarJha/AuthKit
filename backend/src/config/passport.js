@@ -27,14 +27,14 @@ passport.use(
           if (!user) {
             user = await User.create({
               googleId: profile.id,
-              email: profile.emails[0].value,
+              email: profile.emails?.[0]?.value || null,
               fullName: {
                 firstName: profile.name.givenName || "",
                 lastName: profile.name.familyName || "",
               },
               provider: "google",
               isVerified: true,
-              profilePic: profile.photos[0]?.value || "",
+              profilePic: profile.photos?.[0]?.value || "",
             });
           }
         }
@@ -66,10 +66,10 @@ passport.use(
           if (!user) {
             user = await User.create({
               githubId: profile.id,
-              email: profile.emails?.[0]?.value || "",
+              email: profile.emails?.[0]?.value || null,
               fullName: {
                 firstName: profile.displayName?.split(" ")[0] || "",
-                lastName: profile.displayName?.split(" ")[1] || "",
+                lastName: profile.displayName?.split(" ").slice(1).join(" ") || "",
               },
               provider: "github",
               isVerified: true,
@@ -100,13 +100,13 @@ passport.use(
         const mode = req.query.state || "login";
         let user = await User.findOne({ facebookId: profile.id });
 
-        if (!user) {
-          if (mode === "login") {
-            return done(null, false);
-          } else if (mode === "signup") {
+        if (mode === "login") {
+          if (!user) return done(null, false);
+        } else if (mode === "signup") {
+          if (!user) {
             user = await User.create({
               facebookId: profile.id,
-              email: profile.emails?.[0]?.value || "",
+              email: profile.emails?.[0]?.value || null,
               fullName: {
                 firstName: profile.name?.givenName || "",
                 lastName: profile.name?.familyName || "",
@@ -115,11 +115,9 @@ passport.use(
               isVerified: true,
               profilePic: profile.photos?.[0]?.value || "",
             });
-            return done(null, user);
           }
-        } else {
-          return done(null, user);
         }
+        return done(null, user);
       } catch (err) {
         return done(err, null);
       }
@@ -145,12 +143,9 @@ passport.use(
           if (!user) return done(null, false);
         } else if (mode === "signup") {
           if (!user) {
-            if (!profile.email) {
-                return done(new Error("Discord profile does not have a verified email. Cannot sign up."), null);
-            }
             user = await User.create({
               discordId: profile.id,
-              email: profile.email,
+              email: profile.email || null,
               fullName: {
                 firstName: profile.username || "",
                 lastName: "",
@@ -193,15 +188,12 @@ passport.use(
           }
         } else if (mode === "signup") {
           if (!user) {
-            let firstName = profile._json.given_name || "";
-            let lastName = profile._json.family_name || "";
-            
             user = await User.create({
               linkedinId: profile.id,
-              email: profile.email || "",
+              email: profile.email || null,
               fullName: {
-                firstName: firstName,
-                lastName: lastName,
+                firstName: profile.name?.givenName || "",
+                lastName: profile.name?.familyName || "",
               },
               provider: "linkedin",
               isVerified: true,
