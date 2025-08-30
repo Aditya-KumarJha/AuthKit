@@ -5,6 +5,7 @@ const jwt = require("jsonwebtoken");
 const sendEmail = require("../utils/emailService");
 const { ethers } = require("ethers");
 const crypto = require("crypto");
+const challenges = require("../utils/challengeStore"); 
 
 const generateToken = (user) => {
   const payload = { id: user._id };
@@ -16,8 +17,6 @@ const generateToken = (user) => {
 const generateOtp = () => Math.floor(100000 + Math.random() * 900000).toString();
 
 const OTP_RESEND_INTERVAL = 30 * 1000;
-
-const challenges = new Map();
 
 const register = async (req, res) => {
   try {
@@ -350,3 +349,4 @@ module.exports = {
   generateWeb3Challenge,
   verifyWeb3Signature,
 };
+

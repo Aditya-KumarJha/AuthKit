@@ -1,9 +1,9 @@
 const { ethers } = require("ethers");
 const crypto = require("crypto");
+const challenges = require("../utils/challengeStore");
 
 const getUserProfile = async (req, res) => {
   const user = req.user;
-
   if (user) {
     res.status(200).json({
       _id: user._id,
@@ -93,3 +93,4 @@ module.exports = {
   generateLinkChallenge,
   linkWalletAddress,
 };
+
