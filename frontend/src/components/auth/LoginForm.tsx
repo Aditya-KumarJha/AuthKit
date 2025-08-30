@@ -7,6 +7,7 @@ import SocialButtons from "./SocialButtons";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import api from "@/utils/axios";
 import { ethers } from "ethers";
+import toast from "react-hot-toast";
 
 interface Props {
   setOtpStep: (value: boolean) => void;
@@ -65,24 +66,35 @@ export default function LoginForm({ setOtpStep, setUserEmail, setForgotStep, err
   const handleWalletLogin = async () => {
     const baseUrl = process.env.NEXT_PUBLIC_API_URL;
     if (!window.ethereum) {
-      alert("Please install a Web3 wallet like MetaMask to use this feature.");
+      toast.error("Please install a Web3 wallet like MetaMask.");
       return;
     }
+
+    const toastId = toast.loading("Connecting wallet for login...");
+
     try {
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
       const address = await signer.getAddress();
+
+      toast.loading("Requesting signature...", { id: toastId });
+
       const challengeResponse = await fetch(`${baseUrl}/api/auth/web3/challenge`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ address }),
       });
+
       if (!challengeResponse.ok) {
         const errorData = await challengeResponse.json();
         throw new Error(errorData.message || "Failed to get challenge from the server.");
       }
+
       const { message } = await challengeResponse.json();
       const signature = await signer.signMessage(message);
+
+      toast.loading("Verifying signature...", { id: toastId });
+
       const verifyResponse = await fetch(`${baseUrl}/api/auth/web3/verify`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -93,16 +105,16 @@ export default function LoginForm({ setOtpStep, setUserEmail, setForgotStep, err
         throw new Error(errorData.message || "Signature verification failed.");
       }
       const { token, user } = await verifyResponse.json();
-      alert("Wallet connected successfully for login!");
       localStorage.setItem('authToken', token);
       window.location.href = '/dashboard';
+      toast.success("Wallet logged in successfully!", { id: toastId });
 
     } catch (error) {
       console.error("Wallet login failed:", error);
       if (error instanceof Error) {
-        alert(`An error occurred: ${error.message}`);
+        toast.error(`Error: ${error.message}`, { id: toastId });
       } else {
-        alert("An unknown error occurred.");
+        toast.error("An unknown error occurred.", { id: toastId });
       }
     }
   };

@@ -7,6 +7,7 @@ import SocialButtons from "./SocialButtons";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import api from "@/utils/axios";
 import { ethers } from "ethers";
+import toast from "react-hot-toast";
 
 interface Props {
   setOtpStep: (value: boolean) => void;
@@ -81,14 +82,18 @@ export default function SignupForm({ setOtpStep, setUserEmail }: Props) {
     const baseUrl = process.env.NEXT_PUBLIC_API_URL;
 
     if (!window.ethereum) {
-      alert("Please install a Web3 wallet like MetaMask to use this feature.");
+      toast.error("Please install a Web3 wallet like MetaMask.");
       return;
     }
+
+    const toastId = toast.loading("Connecting wallet...");
 
     try {
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
       const address = await signer.getAddress();
+
+      toast.loading("Requesting signature...", { id: toastId });
 
       const challengeResponse = await fetch(`${baseUrl}/api/auth/web3/challenge`, {
         method: "POST",
@@ -104,6 +109,8 @@ export default function SignupForm({ setOtpStep, setUserEmail }: Props) {
       const { message } = await challengeResponse.json();
       const signature = await signer.signMessage(message);
 
+      toast.loading("Verifying signature...", { id: toastId });
+
       const verifyResponse = await fetch(`${baseUrl}/api/auth/web3/verify`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -117,16 +124,16 @@ export default function SignupForm({ setOtpStep, setUserEmail }: Props) {
 
       const { token, user } = await verifyResponse.json();
 
-      alert("Wallet connected successfully!");
       localStorage.setItem('authToken', token);
       window.location.href = '/dashboard';
+      toast.success("Wallet connected successfully!", { id: toastId });
       
     } catch (error) {
       console.error("Wallet connection failed:", error);
       if (error instanceof Error) {
-        alert(`An error occurred: ${error.message}`);
+        toast.error(`Error: ${error.message}`, { id: toastId });
       } else {
-        alert("An unknown error occurred.");
+        toast.error("An unknown error occurred.", { id: toastId });
       }
     }
   };
