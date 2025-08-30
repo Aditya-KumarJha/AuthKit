@@ -6,6 +6,7 @@ import Link from "next/link";
 import SocialButtons from "./SocialButtons";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import api from "@/utils/axios";
+import { ethers } from "ethers";
 
 interface Props {
   setOtpStep: (value: boolean) => void;
@@ -76,6 +77,58 @@ export default function SignupForm({ setOtpStep, setUserEmail }: Props) {
     }
   };
 
+  const handleWalletConnect = async () => {
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL;
+
+    if (!window.ethereum) {
+      alert("Please install a Web3 wallet like MetaMask to use this feature.");
+      return;
+    }
+
+    try {
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      const address = await signer.getAddress();
+
+      const challengeResponse = await fetch(`${baseUrl}/api/auth/web3/challenge`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address }),
+      });
+
+      if (!challengeResponse.ok) {
+        const errorData = await challengeResponse.json();
+        throw new Error(errorData.message || "Failed to get challenge from the server.");
+      }
+
+      const { message } = await challengeResponse.json();
+      const signature = await signer.signMessage(message);
+
+      const verifyResponse = await fetch(`${baseUrl}/api/auth/web3/verify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address, signature }),
+      });
+
+      if (!verifyResponse.ok) {
+        const errorData = await verifyResponse.json();
+        throw new Error(errorData.message || "Signature verification failed.");
+      }
+
+      const { token, user } = await verifyResponse.json();
+
+      console.log("Authentication successful!", { token, user });
+      alert("Wallet connected successfully!");
+    } catch (error) {
+      console.error("Wallet connection failed:", error);
+      if (error instanceof Error) {
+        alert(`An error occurred: ${error.message}`);
+      } else {
+        alert("An unknown error occurred.");
+      }
+    }
+  };
+
   const handleSocialLogin = (provider: string) => {
     const baseUrl = process.env.NEXT_PUBLIC_API_URL;
     switch (provider) {
@@ -93,6 +146,9 @@ export default function SignupForm({ setOtpStep, setUserEmail }: Props) {
         break;
       case "LinkedIn":
         window.location.href = `${baseUrl}/api/auth/linkedin?mode=signup`;
+        break;
+      case "WalletConnect":
+        handleWalletConnect();
         break;
       default:
         console.log(`${provider} login not implemented yet.`);
@@ -168,9 +224,7 @@ export default function SignupForm({ setOtpStep, setUserEmail }: Props) {
               errors.email ? "border-red-500" : "border-gray-300 dark:border-gray-600"
             }`}
           />
-          {errors.email && (
-            <p className="text-red-500 text-xs mt-1">Please fill this field</p>
-          )}
+          {errors.email && <p className="text-red-500 text-xs mt-1">Please fill this field</p>}
         </div>
 
         <div className="relative">
@@ -184,9 +238,7 @@ export default function SignupForm({ setOtpStep, setUserEmail }: Props) {
               errors.password ? "border-red-500" : "border-gray-300 dark:border-gray-600"
             }`}
           />
-          {errors.password && (
-            <p className="text-red-500 text-xs mt-1">{errors.password}</p>
-          )}
+          {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password}</p>}
           <button
             type="button"
             onClick={() => setShowPassword((s) => !s)}

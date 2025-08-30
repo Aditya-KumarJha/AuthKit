@@ -3,18 +3,21 @@ const PendingUser = require("../models/pendingUserModel");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const sendEmail = require("../utils/emailService");
+const { ethers } = require("ethers");
+const crypto = require("crypto");
 
 const generateToken = (user) => {
-  return jwt.sign(
-    { id: user._id, email: user.email },
-    process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_EXPIRE }
-  );
+  const payload = { id: user._id };
+  return jwt.sign(payload, process.env.JWT_SECRET, {
+    expiresIn: process.env.JWT_EXPIRE,
+  });
 };
 
 const generateOtp = () => Math.floor(100000 + Math.random() * 900000).toString();
 
 const OTP_RESEND_INTERVAL = 30 * 1000;
+
+const challenges = new Map();
 
 const register = async (req, res) => {
   try {
@@ -30,7 +33,7 @@ const register = async (req, res) => {
     ]);
 
     if (existingUser) {
-      return res.status(400).json({ message: "User already exists" });
+      return res.status(400).json({ message: "An account with this email already exists" });
     }
 
     await PendingUser.deleteOne({ email });
@@ -67,9 +70,9 @@ const login = async (req, res) => {
     }
 
     const user = await User.findOne({ email });
-    if (!user) return res.status(400).json({ message: "Invalid credentials" });
+    if (!user || !user.password) return res.status(400).json({ message: "Invalid credentials" });
     if (user.provider !== "email")
-      return res.status(400).json({ message: `Use ${user.provider} to login` });
+      return res.status(400).json({ message: `This account was created with ${user.provider}. Please use that method to log in.` });
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(400).json({ message: "Invalid credentials" });
@@ -84,24 +87,18 @@ const login = async (req, res) => {
     console.log("Login Generated OTP:", otpCode);
     const expiresAt = new Date(now.getTime() + 10 * 60 * 1000);
 
-    await User.updateOne(
-      { _id: user._id },
-      { $set: { otp: { code: otpCode, expiresAt, lastSentAt: now } } }
-    );
+    user.otp = { code: otpCode, expiresAt, lastSentAt: now };
+    await user.save();
 
     res.status(200).json({
-      message: "OTP sent to email",
+      message: "OTP sent to your email",
       user: {
         id: user._id,
-        fullName: user.fullName,
         email: user.email,
-        provider: user.provider,
-        profilePic: user.profilePic,
-        isVerified: user.isVerified,
       },
     });
 
-    sendEmail(email, `Your OTP code is ${otpCode}`).catch((err) =>
+    sendEmail(email, `Your login OTP code is ${otpCode}`).catch((err) =>
       console.error("Email sending failed:", err)
     );
 
@@ -114,95 +111,63 @@ const login = async (req, res) => {
 const verifyOtp = async (req, res) => {
   try {
     const { email, otp, context } = req.body;
-    if (!email || !otp) {
-      return res.status(400).json({ message: "Email and OTP required" });
+    if (!email || !otp || !context) {
+      return res.status(400).json({ message: "Email, OTP, and context are required" });
     }
+
+    let user;
+    let token;
 
     if (context === "signup") {
       const pendingUser = await PendingUser.findOne({ email });
-      if (!pendingUser) {
-        return res.status(400).json({ message: "No pending registration found" });
-      }
-
-      if (pendingUser.otp.code !== otp || pendingUser.otp.expiresAt < new Date()) {
+      if (!pendingUser || pendingUser.otp.code !== otp || pendingUser.otp.expiresAt < new Date()) {
         return res.status(400).json({ message: "Invalid or expired OTP" });
       }
 
-      const createUserPromise = User.create({
-        fullName: { firstName: pendingUser.firstName, lastName: pendingUser.lastName },
-        email: pendingUser.email,
-        password: pendingUser.password,
-        provider: "email",
-        isVerified: true,
-      });
-      const deletePendingPromise = PendingUser.deleteOne({ email });
-
-      const [newUser] = await Promise.all([createUserPromise, deletePendingPromise]);
-
-      const token = generateToken(newUser);
-
-      return res.status(201).json({
-        message: "Signup OTP verified successfully",
-        token,
-        user: {
-          id: newUser._id,
-          fullName: newUser.fullName,
-          email: newUser.email,
-          provider: newUser.provider,
-          profilePic: newUser.profilePic,
-          isVerified: newUser.isVerified,
-        },
-      });
-    }
-
-    if (context === "login") {
-      const user = await User.findOne({ email });
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
-      }
-
-      if (!user.otp || user.otp.code !== otp || user.otp.expiresAt < new Date()) {
+      const [newUser] = await Promise.all([
+        User.create({
+          fullName: { firstName: pendingUser.firstName, lastName: pendingUser.lastName },
+          email: pendingUser.email,
+          password: pendingUser.password,
+          provider: "email",
+          isVerified: true,
+        }),
+        PendingUser.deleteOne({ email }),
+      ]);
+      user = newUser;
+      token = generateToken(user);
+    } else if (context === "login") {
+      const foundUser = await User.findOne({ email });
+      if (!foundUser || !foundUser.otp || foundUser.otp.code !== otp || foundUser.otp.expiresAt < new Date()) {
         return res.status(400).json({ message: "Invalid or expired OTP" });
       }
-
-      await User.updateOne({ _id: user._id }, { $unset: { otp: "" } });
-
-      const token = generateToken(user);
-
-      return res.status(200).json({
-        message: "Login OTP verified successfully",
-        token,
-        user: {
-          id: user._id,
-          fullName: user.fullName,
-          email: user.email,
-          provider: user.provider,
-          profilePic: user.profilePic,
-          isVerified: user.isVerified,
-        },
-      });
-    }
-
-    if (context === "forgot") {
-      const user = await User.findOne({ email });
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
-      }
-
-      if (
-        user.resetPasswordToken !== otp ||
-        user.resetPasswordExpires < new Date()
-      ) {
+      foundUser.otp = undefined;
+      await foundUser.save();
+      user = foundUser;
+      token = generateToken(user);
+    } else if (context === "forgot") {
+      const userToReset = await User.findOne({ email });
+      if (!userToReset || userToReset.resetPasswordToken !== otp || userToReset.resetPasswordExpires < new Date()) {
         return res.status(400).json({ message: "Invalid or expired OTP" });
       }
-
-      return res.status(200).json({
-        message: "Forgot password OTP verified successfully",
-        resetAllowed: true,
-      });
+      return res.status(200).json({ message: "OTP verified successfully", resetAllowed: true });
+    } else {
+      return res.status(400).json({ message: "Invalid context. Must be 'signup', 'login', or 'forgot'" });
     }
+    
+    return res.status(context === 'signup' ? 201 : 200).json({
+      message: `OTP verified successfully for ${context}`,
+      token,
+      user: {
+        id: user._id,
+        fullName: user.fullName,
+        email: user.email,
+        provider: user.provider,
+        profilePic: user.profilePic,
+        isVerified: user.isVerified,
+      },
+    });
 
-    return res.status(400).json({ message: "Invalid context. Must be signup, login, or forgot" });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Server error" });
@@ -215,17 +180,16 @@ const requestPasswordReset = async (req, res) => {
     if (!email) return res.status(400).json({ message: "Email required" });
 
     const user = await User.findOne({ email });
-    if (!user) return res.status(400).json({ message: "User not found" });
+    if (!user) return res.status(404).json({ message: "User not found" });
 
     const otpCode = generateOtp();
     console.log("Password Reset OTP:", otpCode);
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
-
+    
     user.resetPasswordToken = otpCode;
-    user.resetPasswordExpires = expiresAt;
+    user.resetPasswordExpires = new Date(Date.now() + 10 * 60 * 1000);
     await user.save();
 
-    res.status(200).json({ message: "Password reset OTP sent to email" });
+    res.status(200).json({ message: "Password reset OTP sent to your email" });
 
     sendEmail(email, `Your password reset OTP is ${otpCode}`).catch((err) =>
       console.error("Email sending failed:", err)
@@ -241,22 +205,22 @@ const resetPassword = async (req, res) => {
   try {
     const { email, otp, newPassword } = req.body;
     if (!email || !otp || !newPassword)
-      return res.status(400).json({ message: "All fields required" });
+      return res.status(400).json({ message: "All fields are required" });
 
-    const user = await User.findOne({ email });
-    if (!user) return res.status(400).json({ message: "User not found" });
+    const user = await User.findOne({
+      email,
+      resetPasswordToken: otp,
+      resetPasswordExpires: { $gt: new Date() },
+    });
 
-    if (
-      user.resetPasswordToken !== otp ||
-      user.resetPasswordExpires < new Date()
-    ) return res.status(400).json({ message: "Invalid or expired OTP" });
+    if (!user) return res.status(400).json({ message: "Invalid or expired OTP" });
 
     user.password = await bcrypt.hash(newPassword, 10);
     user.resetPasswordToken = undefined;
     user.resetPasswordExpires = undefined;
     await user.save();
 
-    res.status(200).json({ message: "Password reset successful" });
+    res.status(200).json({ message: "Password has been reset successfully" });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Server error" });
@@ -269,23 +233,25 @@ const resendOtp = async (req, res) => {
     if (!email) return res.status(400).json({ message: "Email required" });
 
     const user = await User.findOne({ email });
-    if (!user) return res.status(400).json({ message: "User not found" });
+    if (!user) return res.status(404).json({ message: "User not found" });
 
     const now = new Date();
     if (user.otp?.lastSentAt && now - user.otp.lastSentAt < OTP_RESEND_INTERVAL) {
-      return res.status(429).json({ message: "Please wait before requesting another OTP" });
+      const waitTime = Math.ceil((OTP_RESEND_INTERVAL - (now - user.otp.lastSentAt)) / 1000);
+      return res.status(429).json({ message: `Please wait ${waitTime} seconds before requesting another OTP.` });
     }
 
     const otpCode = generateOtp();
     console.log("Resend OTP Generated:", otpCode);
-    const expiresAt = new Date(now.getTime() + 10 * 60 * 1000);
+    
+    user.otp = {
+      code: otpCode,
+      expiresAt: new Date(now.getTime() + 10 * 60 * 1000),
+      lastSentAt: now,
+    };
+    await user.save();
 
-    await User.updateOne(
-      { _id: user._id },
-      { $set: { otp: { code: otpCode, expiresAt, lastSentAt: now } } }
-    );
-
-    res.status(200).json({ message: "New OTP sent to email" });
+    res.status(200).json({ message: "A new OTP has been sent to your email" });
 
     sendEmail(email, `Your new OTP code is ${otpCode}`).catch((err) =>
       console.error("Email sending failed:", err)
@@ -296,6 +262,84 @@ const resendOtp = async (req, res) => {
   }
 };
 
+const generateWeb3Challenge = async (req, res) => {
+  try {
+    const { address } = req.body;
+    if (!address || !ethers.isAddress(address)) {
+      return res.status(400).json({ message: "A valid wallet address is required." });
+    }
+
+    const nonce = crypto.randomBytes(32).toString("hex");
+    const message = `Welcome to our platform!\n\nPlease sign this message to authenticate your wallet. This is a free action and will not trigger a blockchain transaction.\n\nNonce: ${nonce}`;
+    
+    const lowerCaseAddress = address.toLowerCase();
+    challenges.set(lowerCaseAddress, message);
+
+    setTimeout(() => {
+        if (challenges.get(lowerCaseAddress) === message) {
+            challenges.delete(lowerCaseAddress);
+        }
+    }, 10 * 60 * 1000); 
+
+    res.json({ message });
+  } catch (error) {
+    console.error("Web3 Challenge Error:", error);
+    res.status(500).json({ message: "Server error during challenge generation." });
+  }
+};
+
+const verifyWeb3Signature = async (req, res) => {
+  try {
+    const { address, signature } = req.body;
+    if (!address || !signature) {
+      return res.status(400).json({ message: "Wallet address and signature are required." });
+    }
+
+    const lowerCaseAddress = address.toLowerCase();
+    const originalMessage = challenges.get(lowerCaseAddress);
+
+    if (!originalMessage) {
+      return res.status(400).json({ message: "Challenge not found or expired. Please try connecting again." });
+    }
+    
+    challenges.delete(lowerCaseAddress);
+
+    const recoveredAddress = ethers.verifyMessage(originalMessage, signature);
+
+    if (recoveredAddress.toLowerCase() !== lowerCaseAddress) {
+      return res.status(401).json({ message: "Signature verification failed. The signature does not match the provided address." });
+    }
+
+    let user = await User.findOne({ walletAddress: lowerCaseAddress });
+
+    if (!user) {
+      user = await User.create({
+        walletAddress: lowerCaseAddress,
+        provider: "web3",
+        isVerified: true,
+      });
+    }
+
+    const token = generateToken(user);
+
+    res.status(200).json({
+      message: "Authentication successful",
+      token,
+      user: {
+        id: user._id,
+        walletAddress: user.walletAddress,
+        provider: user.provider,
+        profilePic: user.profilePic,
+        isVerified: user.isVerified,
+      },
+    });
+
+  } catch (error) {
+    console.error("Web3 Verify Error:", error);
+    res.status(500).json({ message: "Server error during signature verification." });
+  }
+};
+
 module.exports = {
   register,
   login,
@@ -303,4 +347,6 @@ module.exports = {
   requestPasswordReset,
   resetPassword,
   resendOtp,
+  generateWeb3Challenge,
+  verifyWeb3Signature,
 };

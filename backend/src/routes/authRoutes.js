@@ -9,6 +9,8 @@ const {
   requestPasswordReset,
   resetPassword,
   resendOtp,
+  generateWeb3Challenge,
+  verifyWeb3Signature,
 } = require("../controllers/authController");
 
 const router = express.Router();
@@ -21,6 +23,9 @@ router.post("/verify-otp", verifyOtp);
 router.post("/request-password-reset", requestPasswordReset);
 router.post("/reset-password", resetPassword);
 router.post("/resend-otp", resendOtp);
+
+router.post("/web3/challenge", generateWeb3Challenge);
+router.post("/web3/verify", verifyWeb3Signature);
 
 const socialAuthCallback = (strategy) => (req, res, next) => {
   console.log(`[AUTH-FLOW] Initiating callback for ${strategy} authentication.`);
@@ -47,7 +52,6 @@ const socialAuthCallback = (strategy) => (req, res, next) => {
       }
       return res.redirect(`${FRONTEND_URL}/login?error=Authentication+failed`);
     }
-    console.log(`[AUTH-SUCCESS] User authenticated successfully with ${strategy}.`);
     req.user = user;
     next();
   })(req, res, next);
@@ -58,11 +62,9 @@ const socialAuthSuccess = (req, res) => {
     console.error("[AUTH-ERROR] User object not present after successful authentication.");
     return res.redirect(`${FRONTEND_URL}/login?error=Authentication+failed`);
   }
-  console.log(`[AUTH-SUCCESS] Generating JWT for user ID: ${req.user._id}`);
   const token = jwt.sign({ id: req.user._id }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRE,
   });
-  console.log(`[AUTH-SUCCESS] Redirecting to success URL: ${FRONTEND_URL}/auth/success?token=${token}`);
   res.redirect(`${FRONTEND_URL}/auth/success?token=${token}`);
 };
 

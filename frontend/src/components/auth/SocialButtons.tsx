@@ -13,7 +13,7 @@ export default function SocialButtons({ onClick }: SocialButtonsProps) {
     { name: "Facebook", icon: <FaFacebook /> },
     { name: "Discord", icon: <FaDiscord /> },
     { name: "LinkedIn", icon: <FaLinkedin /> },
-    { name: "MetaMask", icon: <FaWallet /> },
+    { name: "Connect Wallet", icon: <FaWallet /> },
   ];
 
   return (

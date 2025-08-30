@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSearchParams,useRouter } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import SocialButtons from "./SocialButtons";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import api from "@/utils/axios";
+import { ethers } from "ethers";
 
 interface Props {
   setOtpStep: (value: boolean) => void;
@@ -21,7 +22,6 @@ export default function LoginForm({ setOtpStep, setUserEmail, setForgotStep, err
   const [errors, setErrors] = useState({ email: false, password: false });
   const [loading, setLoading] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
-
   const router = useRouter();
 
   useEffect(() => {
@@ -62,6 +62,49 @@ export default function LoginForm({ setOtpStep, setUserEmail, setForgotStep, err
     }
   };
 
+  const handleWalletLogin = async () => {
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL;
+    if (!window.ethereum) {
+      alert("Please install a Web3 wallet like MetaMask to use this feature.");
+      return;
+    }
+    try {
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      const address = await signer.getAddress();
+      const challengeResponse = await fetch(`${baseUrl}/api/auth/web3/challenge`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address }),
+      });
+      if (!challengeResponse.ok) {
+        const errorData = await challengeResponse.json();
+        throw new Error(errorData.message || "Failed to get challenge from the server.");
+      }
+      const { message } = await challengeResponse.json();
+      const signature = await signer.signMessage(message);
+      const verifyResponse = await fetch(`${baseUrl}/api/auth/web3/verify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address, signature }),
+      });
+      if (!verifyResponse.ok) {
+        const errorData = await verifyResponse.json();
+        throw new Error(errorData.message || "Signature verification failed.");
+      }
+      const { token, user } = await verifyResponse.json();
+      console.log("Authentication successful!", { token, user });
+      alert("Wallet connected successfully for login!");
+    } catch (error) {
+      console.error("Wallet login failed:", error);
+      if (error instanceof Error) {
+        alert(`An error occurred: ${error.message}`);
+      } else {
+        alert("An unknown error occurred.");
+      }
+    }
+  };
+
   const handleSocialLogin = (provider: string) => {
     const baseUrl = process.env.NEXT_PUBLIC_API_URL;
     switch (provider) {
@@ -80,6 +123,9 @@ export default function LoginForm({ setOtpStep, setUserEmail, setForgotStep, err
       case "LinkedIn":
         window.location.href = `${baseUrl}/api/auth/linkedin?mode=login`;
         break;
+      case "WalletConnect":
+        handleWalletLogin();
+        break;
       default:
         console.log(`${provider} login not implemented yet.`);
     }
@@ -94,23 +140,17 @@ export default function LoginForm({ setOtpStep, setUserEmail, setForgotStep, err
       <p className="text-sm text-gray-600 dark:text-gray-300 text-center mb-8">
         Enter your credentials below to access your account.
       </p>
-
       <SocialButtons onClick={handleSocialLogin} />
-
       <div className="flex items-center gap-4 mb-6">
         <div className="h-px bg-gray-300 dark:bg-gray-700 flex-1" />
-        <span className="text-xs text-gray-500 dark:text-gray-400">
-          or continue with email
-        </span>
+        <span className="text-xs text-gray-500 dark:text-gray-400">or continue with email</span>
         <div className="h-px bg-gray-300 dark:bg-gray-700 flex-1" />
       </div>
-
       {(errorMessage || serverError) && (
         <div className="mb-3 p-3 rounded-md bg-red-100 text-red-700 text-sm border border-red-300 text-center">
           {errorMessage || serverError}
         </div>
       )}
-
       <form className="space-y-4" onSubmit={handleSubmit}>
         <div>
           <input
@@ -123,11 +163,8 @@ export default function LoginForm({ setOtpStep, setUserEmail, setForgotStep, err
               errors.email ? "border-red-500" : "border-gray-300 dark:border-gray-600"
             }`}
           />
-          {errors.email && (
-            <p className="text-red-500 text-xs mt-1">Please fill this field</p>
-          )}
+          {errors.email && <p className="text-red-500 text-xs mt-1">Please fill this field</p>}
         </div>
-
         <div className="relative">
           <input
             type={showPassword ? "text" : "password"}
@@ -139,10 +176,7 @@ export default function LoginForm({ setOtpStep, setUserEmail, setForgotStep, err
               errors.password ? "border-red-500" : "border-gray-300 dark:border-gray-600"
             }`}
           />
-          {errors.password && (
-            <p className="text-red-500 text-xs mt-1">Please fill this field</p>
-          )}
-
+          {errors.password && <p className="text-red-500 text-xs mt-1">Please fill this field</p>}
           <button
             type="button"
             onClick={() => setShowPassword((s) => !s)}
@@ -152,7 +186,6 @@ export default function LoginForm({ setOtpStep, setUserEmail, setForgotStep, err
             {showPassword ? <FaEyeSlash /> : <FaEye />}
           </button>
         </div>
-
         <button
           type="submit"
           disabled={loading}
@@ -160,7 +193,6 @@ export default function LoginForm({ setOtpStep, setUserEmail, setForgotStep, err
         >
           {loading ? "Logging in..." : "Login"}
         </button>
-
         <div className="text-right">
           <button
             type="button"
@@ -170,13 +202,9 @@ export default function LoginForm({ setOtpStep, setUserEmail, setForgotStep, err
             Forgot Password?
           </button>
         </div>
-
         <p className="text-center text-sm text-gray-600 dark:text-gray-400 mt-4">
           Don't have an account?{" "}
-          <Link
-            href="/signup"
-            className="text-teal-500 dark:text-cyan-400 hover:underline"
-          >
+          <Link href="/signup" className="text-teal-500 dark:text-cyan-400 hover:underline">
             Sign Up
           </Link>
         </p>
