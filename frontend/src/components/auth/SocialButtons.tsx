@@ -1,6 +1,7 @@
 "use client";
 
-import { FaGoogle, FaGithub, FaFacebook, FaDiscord, FaLinkedin, FaWallet } from "react-icons/fa";
+import { FaGoogle, FaGithub, FaFacebook, FaDiscord, FaLinkedin } from "react-icons/fa";
+import { FaXTwitter } from "react-icons/fa6"; 
 
 interface SocialButtonsProps {
   onClick: (provider: string) => void;
@@ -13,7 +14,7 @@ export default function SocialButtons({ onClick }: SocialButtonsProps) {
     { name: "Facebook", icon: <FaFacebook /> },
     { name: "Discord", icon: <FaDiscord /> },
     { name: "LinkedIn", icon: <FaLinkedin /> },
-    { name: "MetaMask", icon: <FaWallet /> },
+    { name: "Twitter", icon: <FaXTwitter /> }, 
   ];
 
   return (
