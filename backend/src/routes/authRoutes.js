@@ -9,6 +9,8 @@ const {
   requestPasswordReset,
   resetPassword,
   resendOtp,
+  generateChallenge,
+  verifySignature,
 } = require("../controllers/authController");
 
 const router = express.Router();
@@ -110,5 +112,8 @@ router.get(
   }
 );
 router.get("/linkedin/callback", socialAuthCallback("linkedin"), socialAuthSuccess);
+
+router.get("/metamask/challenge", generateChallenge);
+router.post("/metamask/verify", verifySignature);
 
 module.exports = router;

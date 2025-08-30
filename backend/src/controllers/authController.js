@@ -3,6 +3,8 @@ const PendingUser = require("../models/pendingUserModel");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const sendEmail = require("../utils/emailService");
+const { ethers } = require("ethers");
+const crypto = require("crypto"); 
 
 const generateToken = (user) => {
   return jwt.sign(
@@ -296,6 +298,54 @@ const resendOtp = async (req, res) => {
   }
 };
 
+const generateChallenge = (req, res) => {
+    const nonce = crypto.randomBytes(32).toString("hex");
+    const challenge = `Please sign this message to authenticate your wallet. Nonce: ${nonce}`;
+    res.status(200).json({ challenge, nonce });
+  };
+  
+const verifySignature = async (req, res) => {
+    const { walletAddress, signature, challenge, mode } = req.body;
+  
+    if (!walletAddress || !signature || !challenge || !mode) {
+      return res.status(400).json({ success: false, message: "Missing required fields" });
+    }
+  
+    try {
+      const recoveredAddress = ethers.utils.verifyMessage(challenge, signature);
+  
+      if (recoveredAddress.toLowerCase() !== walletAddress.toLowerCase()) {
+        return res.status(401).json({ success: false, message: "Invalid signature" });
+      }
+  
+      let user = await User.findOne({ walletAddress: walletAddress });
+  
+      if (mode === "login") {
+        if (!user) {
+          return res.status(401).json({ success: false, message: "User not found." });
+        }
+      } else if (mode === "signup") {
+        if (!user) {
+          user = await User.create({
+            walletAddress: walletAddress,
+            email: "", 
+            fullName: { firstName: "", lastName: "" }, 
+            provider: "web3",
+            isVerified: true,
+          });
+        }
+      }
+  
+      const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+        expiresIn: process.env.JWT_EXPIRE,
+      });
+      res.status(200).json({ success: true, token, user });
+    } catch (err) {
+      console.error("MetaMask verification failed:", err);
+      res.status(500).json({ success: false, message: "Server error" });
+    }
+  };
+  
 module.exports = {
   register,
   login,
@@ -303,4 +353,6 @@ module.exports = {
   requestPasswordReset,
   resetPassword,
   resendOtp,
+  generateChallenge,
+  verifySignature,
 };
