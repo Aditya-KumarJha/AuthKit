@@ -6,7 +6,6 @@ import Link from "next/link";
 import SocialButtons from "./SocialButtons";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import api from "@/utils/axios";
-import { ethers } from "ethers";
 
 interface Props {
   setOtpStep: (value: boolean) => void;
@@ -95,52 +94,10 @@ export default function SignupForm({ setOtpStep, setUserEmail }: Props) {
       case "LinkedIn":
         window.location.href = `${baseUrl}/api/auth/linkedin?mode=signup`;
         break;
-      case "MetaMask":
-        handleMetaMaskLogin();
-        break;
       default:
         console.log(`${provider} login not implemented yet.`);
     }
   };
-
-  const handleMetaMaskLogin = async () => {
-    try {
-      setLoading(true);
-      setServerError(null);
-
-      if (typeof window.ethereum === 'undefined') {
-        setServerError("MetaMask is not installed. Please install it to continue.");
-        setLoading(false);
-        return;
-      }
-
-      const provider = new ethers.BrowserProvider(window.ethereum);
-      const accounts = await provider.send("eth_requestAccounts", []);
-      const walletAddress = accounts[0];
-
-      const { data } = await api.get(`/api/auth/metamask/challenge`);
-      const { challenge } = data;
-
-      const signer = await provider.getSigner();
-      const signature = await signer.signMessage(challenge);
-      
-      const response = await api.post("/api/auth/metamask/verify", {
-        walletAddress,
-        signature,
-        challenge,
-        mode: "signup",
-      });
-
-      const { token } = response.data;
-      localStorage.setItem("authToken", token);
-      router.push("/dashboard");
-    } catch (err: any) {
-      const msg = err.response?.data?.message || err.message || "MetaMask login failed. Please try again.";
-      setServerError(msg);
-      setLoading(false);
-    }
-  };
-
 
   const inputBaseClasses =
     "w-full px-4 py-3 rounded-lg border focus:border-teal-400 focus:ring-2 focus:ring-cyan-400 outline-none placeholder-gray-400 dark:placeholder-gray-500 transition";
